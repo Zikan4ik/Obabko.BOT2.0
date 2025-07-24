@@ -104,26 +104,30 @@ def main():
     # Логування (за потреби можна налаштувати)
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    updater = Updater(TELEGRAM_BOT_TOKEN)
+    # Ініціалізація черги оновлень
+    update_queue = Queue()
+    updater = Updater(TELEGRAM_BOT_TOKEN, update_queue=update_queue)
     dp = updater.dispatcher
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            DOCTOR: [MessageHandler(filters.text & ~filters.command, doctor)],
-            PHONE: [MessageHandler(filters.text & ~filters.command, phone)],
-            CLINIC: [MessageHandler(filters.text & ~filters.command, clinic)],
-            DATETIME: [MessageHandler(filters.text & ~filters.command, datetime_step)],
-            PATIENT: [MessageHandler(filters.text & ~filters.command, patient)],
-            IMPLANT_SYSTEM: [MessageHandler(filters.text & ~filters.command, implant)],
-            ZONE: [MessageHandler(filters.text & ~filters.command, zone)],
+            DOCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, doctor)], # Переконайтеся, що тут filters (з маленької)
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
+            CLINIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, clinic)],
+            DATETIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, datetime_step)],
+            PATIENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, patient)],
+            IMPLANT_SYSTEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, implant)],
+            ZONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     dp.add_handler(conv_handler)
+
+    # Запускаємо бота
     updater.start_polling()
     updater.idle()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
