@@ -9,7 +9,7 @@ from telegram.ext import (
     Updater,
     CommandHandler,
     MessageHandler,
-    Filters,
+    filters,
     ConversationHandler,
     CallbackContext
 )
@@ -110,13 +110,13 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            DOCTOR: [MessageHandler(Filters.text & ~Filters.command, doctor)],
-            PHONE: [MessageHandler(Filters.text & ~Filters.command, phone)],
-            CLINIC: [MessageHandler(Filters.text & ~Filters.command, clinic)],
-            DATETIME: [MessageHandler(Filters.text & ~Filters.command, datetime_step)],
-            PATIENT: [MessageHandler(Filters.text & ~Filters.command, patient)],
-            IMPLANT_SYSTEM: [MessageHandler(Filters.text & ~Filters.command, implant)],
-            ZONE: [MessageHandler(Filters.text & ~Filters.command, zone)],
+            DOCTOR: [MessageHandler(filters.text & ~filters.command, doctor)],
+            PHONE: [MessageHandler(filters.text & ~filters.command, phone)],
+            CLINIC: [MessageHandler(filters.text & ~filters.command, clinic)],
+            DATETIME: [MessageHandler(filters.text & ~filters.command, datetime_step)],
+            PATIENT: [MessageHandler(filters.text & ~filters.command, patient)],
+            IMPLANT_SYSTEM: [MessageHandler(filters.text & ~filters.command, implant)],
+            ZONE: [MessageHandler(filters.text & ~filters.command, zone)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
