@@ -6,16 +6,17 @@ import logging
 from datetime import datetime
 from telegram import Update
 from telegram.ext import (
-    Updater,
+    Application, # <--- Додано Application
     CommandHandler,
     MessageHandler,
-    filters, # Переконайтеся, що тут filters (з маленької)
+    filters,
     ConversationHandler,
     CallbackContext
 )
+# Updater більше не потрібен у цьому способі
+
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from queue import Queue # <--- ПЕРЕКОНАЙТЕСЬ, ЩО ЦЕЙ РЯДОК Є
 
 # 🔧 Налаштування
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN", "7627926805:AAFCYdWl9Bg8BdV38RpZyL_fkJQt8JNBf7s")
@@ -105,15 +106,13 @@ def main():
     # Логування (за потреби можна налаштувати)
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    # Ініціалізація черги оновлень
-    update_queue = Queue()
-    updater = Updater(TELEGRAM_BOT_TOKEN, update_queue=update_queue)
-    dp = updater.dispatcher
+    # Ініціалізація Application
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build() # <--- Новий спосіб ініціалізації
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            DOCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, doctor)], # Переконайтеся, що тут filters (з маленької)
+            DOCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, doctor)],
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
             CLINIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, clinic)],
             DATETIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, datetime_step)],
@@ -124,11 +123,12 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    dp.add_handler(conv_handler)
+    # Додаємо обробник до application, а не до dp
+    application.add_handler(conv_handler)
 
     # Запускаємо бота
-    updater.start_polling()
-    updater.idle()
+    application.run_polling(allowed_updates=Update.ALL_TYPES) # <--- Новий спосіб запуску
+    # application.idle() не потрібен, run_polling блокує виконання
 
 if __name__ == '__main__':
     main()
