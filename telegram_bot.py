@@ -65,7 +65,7 @@ def implant(update: Update, context: CallbackContext) -> int:
     return ZONE
 
 def zone(update: Update, context: CallbackContext) -> int:
-    context.user_data["Передбачувана зона встановлення імплантатів Вкажіть в форматі "номер зуба - диаметер/довжина імплантата""] = update.message.text
+    context.user_data["Передбачувана зона встановлення імплантатів Вкажіть в форматі номер зуба - диаметер/довжина імплантата"] = update.message.text
     context.user_data["Статус"] = "Новий"
     save_to_sheet(context.user_data)
     notify_admin(context)
