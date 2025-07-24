@@ -9,12 +9,13 @@ from telegram.ext import (
     Updater,
     CommandHandler,
     MessageHandler,
-    filters,
+    filters, # Переконайтеся, що тут filters (з маленької)
     ConversationHandler,
     CallbackContext
 )
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from queue import Queue # <--- ПЕРЕКОНАЙТЕСЬ, ЩО ЦЕЙ РЯДОК Є
 
 # 🔧 Налаштування
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN", "7627926805:AAFCYdWl9Bg8BdV38RpZyL_fkJQt8JNBf7s")
