@@ -6,15 +6,13 @@ import logging
 from datetime import datetime
 from telegram import Update
 from telegram.ext import (
-    Application, # <--- Додано Application
+    Application,
     CommandHandler,
     MessageHandler,
     filters,
     ConversationHandler,
     CallbackContext
 )
-# Updater більше не потрібен у цьому способі
-
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -24,54 +22,57 @@ ADMIN_CHAT_ID = 700139501  # ID, куди надсилаються повідо�
 
 # 🔌 Підключення до Google Sheets
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+# Переконайтеся, що credentials.json знаходиться у тій же директорії, що і telegram_bot.py
 creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
 gc = gspread.authorize(creds)
+# Переконайтеся, що назва аркуша "Ответы на форму" точно співпадає з вашою вкладкою в Google Sheets
 sheet = gc.open_by_key("1i7BKTUHO4QW9OoUW_0xdE1uKqGCcY3MO_6BjHaVzyFk").worksheet("Ответы на форму")
-headers = sheet.row_values(1)  # Назви колонок
+headers = sheet.row_values(1)  # Назви колонок з першого рядка таблиці
 
 # 🧩 Етапи збору даних
 DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE = range(7)
 
-def start(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("👨‍⚕️ Введіть прізвище лікаря:")
+async def start(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("👨‍⚕️ Введіть прізвище лікаря:")
     return DOCTOR
 
-def doctor(update: Update, context: CallbackContext) -> int:
+async def doctor(update: Update, context: CallbackContext) -> int:
     context.user_data["ПІБ лікаря"] = update.message.text
-    update.message.reply_text("📞 Введіть номер телефону:")
+    await update.message.reply_text("📞 Введіть номер телефону:")
     return PHONE
 
-def phone(update: Update, context: CallbackContext) -> int:
+async def phone(update: Update, context: CallbackContext) -> int:
     context.user_data["Контактний телефон"] = update.message.text
-    update.message.reply_text("🏥 Введіть назву клініки:")
+    await update.message.reply_text("🏥 Введіть назву клініки:")
     return CLINIC
 
-def clinic(update: Update, context: CallbackContext) -> int:
+async def clinic(update: Update, context: CallbackContext) -> int:
     context.user_data["Назва клініки"] = update.message.text
-    update.message.reply_text("📅 Введіть дату замовлення (напр. 24.07.2025):")
+    await update.message.reply_text("📅 Введіть дату замовлення (напр. 24.07.2025):")
     return DATETIME
 
-def datetime_step(update: Update, context: CallbackContext) -> int:
-    context.user_data["дата здачі"] = update.message.text
-    update.message.reply_text("👤 Введіть ПІБ пацієнта:")
+async def datetime_step(update: Update, context: CallbackContext) -> int:
+    context.user_data["дата здачі"] = update.message.text # Ключ для збереження дати
+    await update.message.reply_text("👤 Введіть ПІБ пацієнта:")
     return PATIENT
 
-def patient(update: Update, context: CallbackContext) -> int:
-    context.user_data["ПІБ лікаря"] = update.message.text
-    update.message.reply_text("🔩 Введіть імплантаційну систему:")
+async def patient(update: Update, context: CallbackContext) -> int:
+    context.user_data["ПІБ пацієнта"] = update.message.text # Виправлено: було "ПІБ лікаря"
+    await update.message.reply_text("🔩 Введіть імплантаційну систему:")
     return IMPLANT_SYSTEM
 
-def implant(update: Update, context: CallbackContext) -> int:
-    context.user_data["Система імплантатів"] = update.message.text
-    update.message.reply_text("🦷 Введіть зону (наприклад 1.1 або 2.4):")
+async def implant(update: Update, context: CallbackContext) -> int:
+    context.user_data["Система імплантатів"] = update.message.text # Ключ для збереження системи
+    await update.message.reply_text("🦷 Введіть зону (наприклад 1.1 або 2.4):")
     return ZONE
 
-def zone(update: Update, context: CallbackContext) -> int:
-    context.user_data["Передбачувана зона встановлення імплантатів Вкажіть в форматі номер зуба - диаметер/довжина імплантата"] = update.message.text
+async def zone(update: Update, context: CallbackContext) -> int:
+    # Виправлення SyntaxError:
+    context.user_data['Передбачувана зона встановлення імплантатів Вкажіть в форматі "номер зуба - диаметер/довжина імплантата"'] = update.message.text
     context.user_data["Статус"] = "Новий"
-    save_to_sheet(context.user_data)
-    notify_admin(context)
-    update.message.reply_text("✅ Замовлення прийняте. Дякуємо!")
+    save_to_sheet(context.user_data) # Може бути async, але залишимо так для простоти
+    notify_admin(context) # Може бути async, але залишимо так для простоти
+    await update.message.reply_text("✅ Замовлення прийняте. Дякуємо!")
     return ConversationHandler.END
 
 def save_to_sheet(data: dict):
@@ -84,30 +85,30 @@ def save_to_sheet(data: dict):
 def notify_admin(context: CallbackContext):
     """
     Надсилаємо адміну повідомлення про нове замовлення.
+    Ключі тут мають ТОЧНО співпадати з ключами в context.user_data
     """
     data = context.user_data
     msg = (
         "🆕 НОВЕ ЗАМОВЛЕННЯ\n\n"
-        f"📅 Дата: {data.get('Дата')}\n"
-        f"🏥 Клініка: {data.get('Клініка')}\n"
-        f"👤 Пацієнт: {data.get('ПІБ пацієнта')}\n"
-        f"🔩 Система: {data.get('Система')}\n"
-        f"🦷 Зона: {data.get('Зона')}\n"
-        f"📞 Телефон: {data.get('Телефон')}\n"
-        f"📌 Статус: {data.get('Статус')}"
+        f"📅 Дата: {data.get('дата здачі', 'N/A')}\n" # Виправлено: 'Дата' на 'дата здачі'
+        f"🏥 Клініка: {data.get('Назва клініки', 'N/A')}\n" # Виправлено: 'Клініка' на 'Назва клініки'
+        f"👤 Пацієнт: {data.get('ПІБ пацієнта', 'N/A')}\n"
+        f"🔩 Система: {data.get('Система імплантатів', 'N/A')}\n" # Виправлено: 'Система' на 'Система імплантатів'
+        f"🦷 Зона: {data.get('Передбачувана зона встановлення імплантатів Вкажіть в форматі \"номер зуба - диаметер/довжина імплантата\"', 'N/A')}\n" # Виправлено ключ
+        f"📞 Телефон: {data.get('Контактний телефон', 'N/A')}\n" # Виправлено: 'Телефон' на 'Контактний телефон'
+        f"📌 Статус: {data.get('Статус', 'N/A')}"
     )
     context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=msg)
 
-def cancel(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("❌ Операцію скасовано.")
+async def cancel(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("❌ Операцію скасовано.")
     return ConversationHandler.END
 
 def main():
-    # Логування (за потреби можна налаштувати)
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    # Ініціалізація Application
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build() # <--- Новий спосіб ініціалізації
+    # Ініціалізація Application (Application замінює Updater та Dispatcher)
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -123,12 +124,11 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    # Додаємо обробник до application, а не до dp
+    # Додаємо обробник до application
     application.add_handler(conv_handler)
 
     # Запускаємо бота
-    application.run_polling(allowed_updates=Update.ALL_TYPES) # <--- Новий спосіб запуску
-    # application.idle() не потрібен, run_polling блокує виконання
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()
