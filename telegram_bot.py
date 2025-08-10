@@ -491,7 +491,7 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     
     return MAIN_MENU
 
-async def show_order_summary(update: Update, context: CallbackContext):
+success = await save_to_sheet(context.user_data, async_mode=True)
     data = context.user_data
     summary = (
         "📋 <b>Зведення вашого замовлення:</b>\n\n"
@@ -508,47 +508,44 @@ async def show_order_summary(update: Update, context: CallbackContext):
 
 # Оновлена функція збереження в Google Sheets за колонками
 async def save_to_sheet_async(user_data):
-    try:
-        values = [[
-            user_data.get("timestamp", ""),
-            user_data.get("doctor", ""),
-            user_data.get("phone", ""),
-            user_data.get("clinic", ""),
-            user_data.get("date", ""),
-            user_data.get("patient", ""),
-            user_data.get("implant_system", ""),
-            user_data.get("zone", ""),
-            user_data.get("status", ""),
-            user_data.get("user_id", "")
-        ]]
+    # Порядок колонок в Google Sheets (меняешь только здесь при необходимости)
+COLUMN_MAPPING = {
+    "timestamp": "A",        # Дата і час заявки
+    "doctor": "B",           # ПІБ лікаря
+    "phone": "C",            # Телефон
+    "clinic": "D",           # Клініка
+    "date": "E",             # Дата здачі
+    "patient": "F",          # ПІБ пацієнта
+    "implant_system": "G",   # Система імплантів
+    "zone": "H",             # Зона встановлення
+    "status": "I",           # Статус замовлення
+    "user_id": "J"           # Telegram ID
+}
 
-        # Пример для gspread_asyncio:
-        await sheet.append_rows(values)  # Должно быть именно [[...]]
+# Универсальная функция записи в Google Sheets
+async def save_to_sheet(user_data, async_mode=True):
+    try:
+        # Формируем строку данных по колонкам
+        row_data = [str(user_data.get(field, "")) for field in COLUMN_MAPPING.keys()]
+        values = [row_data]  # Двумерный список для Google Sheets API
+
+        if async_mode:
+            # Асинхронная запись
+            await sheet.append_rows(values)
+        else:
+            # Синхронная запись в следующий свободный рядок
+            last_row = len(WORKSHEET.get_all_values()) + 1
+            start_col = list(COLUMN_MAPPING.values())[0]
+            end_col = list(COLUMN_MAPPING.values())[-1]
+            cell_range = f"{start_col}{last_row}:{end_col}{last_row}"
+            WORKSHEET.update(cell_range, values)
+
+        logging.info(f"✅ Дані успішно записані в Google Sheets: {values}")
         return True
 
     except Exception as e:
-        logging.error(f"Помилка при записі в Google Sheet: {e}")
+        logging.error(f"❌ Помилка при записі в Google Sheet: {e}")
         return False
-
-
-def save_to_sheet_sync(data: Dict[str, Any]):
-    try:
-        # Знаходимо останній рядок з даними
-        last_row = len(WORKSHEET.get_all_values()) + 1
-        
-        # Записуємо дані у відповідні колонки
-        for field, column in COLUMN_MAPPING.items():
-            value = str(data.get(field, ""))
-            if value:  # Записуємо тільки якщо є значення
-                cell = f"{column}{last_row}"
-                WORKSHEET.update(cell, value)
-                logging.info(f"Записано в {cell}: {value}")
-        
-        logging.info(f"Дані замовлення збережено у рядок {last_row}")
-        
-    except Exception as e:
-        logging.error(f"Помилка при записі в Google Sheet: {e}")
-        raise
 
 async def notify_admin_async(context: CallbackContext):
     try:
