@@ -30,6 +30,7 @@ WORKSHEET_ID = 1024616098  # ID вкладки з URL
 # 🎯 Додаткові налаштування
 MAX_MESSAGE_LENGTH = 4000
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "@vlasenko_b")
+WEBSITE_URL = "https://www.obabkolab.com.ua/"
 
 # 🔌 Підключення до Google Sheets
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -74,20 +75,16 @@ WORKSHEET, HEADERS = setup_google_sheets()
 # 🧩 Етапи розмови
 DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE, MAIN_MENU, CHAT_MODE, FILES_MODE = range(10)
 
-# 📊 Відповідність полів бота і таблиці (ВИПРАВЛЕНО)
-FIELD_MAPPING = {
-    "timestamp": "Час",
-    "doctor": "ПІБ лікаря", 
-    "phone": "Контактний телефон",
-    "clinic": "Назва клініки",
-    "date": "дата здачі",
-    "patient": "ПІБ пацієнта",
-    "implant_system": "Система імплантатів",
-    "zone": "Передбачувана зона встановлення імплантатів",
-    "building_address": "Адреса клініки (місто, вулиця, номер будинку)",
-    "status": "Статус",
-    "from_where": "Звідки ви дізналися про нас (тмксть, дилерить Новій Пошті)",
-    "operation_time": "Яєкий ви плануєте час операції"
+# 📊 Оновлене відповідність полів бота і таблиці за колонками
+COLUMN_MAPPING = {
+    "doctor": "J",       # Лікар
+    "phone": "K",        # Телефон
+    "clinic": "L",       # Клініка
+    "date": "O",         # Дата здачі
+    "patient": "R",      # Пацієнт
+    "implant_system": "S",  # Система
+    "zone": "T",         # Зона
+    "status": "Z",       # Статус
 }
 
 # 🔍 Функції валідації
@@ -113,7 +110,7 @@ def validate_zone(zone: str) -> bool:
     """Валідація зони імплантації"""
     return len(zone.strip()) >= 2
 
-# 🏠 Головне меню (ОНОВЛЕНО)
+# 🏠 Головне меню
 def get_main_menu_keyboard():
     """Створює клавіатуру головного меню з оновленими пунктами"""
     keyboard = [
@@ -222,15 +219,29 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
         return FILES_MODE
 
     elif query.data == "price":
-        price_text = (
-            "💰 <b>Прайс-лист</b>\n\n"
-            "📋 Для отримання актуального прайс-листу напишіть в чаті з підтримкою.\n"
-            "📞 Наші менеджери надішлють вам детальну інформацію про вартість."
+        # Надсилаємо прайс-листи як фото
+        await query.message.reply_photo(
+            photo="AgACAgIAAxkBAAICNmda6Mxv8bPEaK95ZqD25N4nrlwqAAJ07jEbDy-pSvGEoq_uPfNZAQADAgADeQADNgQ",
+            caption="💰 <b>Прайс-лист: Хірургічні шаблони</b>\n\nАктуальні ціни на хірургічні шаблони з опорою на зуби:",
+            parse_mode='HTML'
+        )
+        
+        await query.message.reply_photo(
+            photo="AgACAgIAAxkBAAICOWda6MxrGCKN68l8WuUhYf5W5NBEAAJB7jEbDy-pShaH1LgtPXHxAQADAgADeQADNgQ",
+            caption="💰 <b>Прайс-лист: Різні послуги</b>\n\nПовний перелік наших послуг та їх вартість:",
+            parse_mode='HTML'
+        )
+        
+        await query.message.reply_photo(
+            photo="AgACAgIAAxkBAAICOGda6MxsEaG_cjWUBplttTXUQiPFAAJA7jEbDy-pStCB5_hRy0YkAQADAgADeQADNgQ",
+            caption="💰 <b>Прайс-лист: Основні послуги</b>\n\nДетальна інформація про наші основні послуги:",
+            parse_mode='HTML'
         )
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
-        await query.edit_message_text(
-            price_text,
+        await query.message.reply_text(
+            "📋 <b>Прайс-листи надіслано!</b>\n\n"
+            "📞 Для уточнення деталей або індивідуальних розрахунків зв'яжіться з нашою підтримкою.",
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -238,16 +249,25 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
 
     elif query.data == "website":
         website_text = (
-            "🌐 <b>Наш офіційний сайт</b>\n\n"
-            "🔗 Посилання на наш сайт ви можете отримати через чат з підтримкою.\n"
-            "💡 На сайті ви знайдете повну інформацію про наші послуги та продукцію."
+            f"🌐 <b>Наш офіційний сайт</b>\n\n"
+            f"🔗 <a href='{WEBSITE_URL}'>ObaBko Lab - Цифрова стоматологія</a>\n\n"
+            "💡 На сайті ви знайдете:\n"
+            "• Повну інформацію про наші послуги\n"
+            "• Портфоліо робіт\n"
+            "• Контактні дані\n"
+            "• Форму для замовлення\n\n"
+            "📱 Перейдіть за посиланням, щоб відвідати наш сайт!"
         )
         
-        keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
+        keyboard = [
+            [InlineKeyboardButton("🌐 Відкрити сайт", url=WEBSITE_URL)],
+            [InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]
+        ]
         await query.edit_message_text(
             website_text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            disable_web_page_preview=False
         )
         return MAIN_MENU
 
@@ -277,7 +297,7 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
     elif query.data == "back_to_menu":
         return await show_main_menu(update, context)
 
-# 💬 Чат з підтримкою (ВИПРАВЛЕНО - тепер пересилає повідомлення)
+# 💬 Чат з підтримкою
 async def chat_handler(update: Update, context: CallbackContext) -> int:
     """Обробник повідомлень у режимі чату - пересилає повідомлення адміністратору"""
     user_message = update.message.text
@@ -315,7 +335,7 @@ async def chat_handler(update: Update, context: CallbackContext) -> int:
     
     return CHAT_MODE
 
-# 📁 Надсилання файлів (ВИПРАВЛЕНО - тепер пересилає файли)
+# 📁 Надсилання файлів
 async def files_handler(update: Update, context: CallbackContext):
     """Обробник надсилання файлів - пересилає файли адміністратору"""
     user = update.effective_user
@@ -431,9 +451,6 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     context.user_data["zone"] = zone
     context.user_data["status"] = "Новий"
     context.user_data["timestamp"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    context.user_data["building_address"] = ""
-    context.user_data["from_where"] = ""
-    context.user_data["operation_time"] = ""
     
     await show_order_summary(update, context)
     
@@ -474,9 +491,9 @@ async def show_order_summary(update: Update, context: CallbackContext):
     )
     await update.message.reply_text(summary, parse_mode='HTML')
 
-# ВИПРАВЛЕНО: функція збереження в Google Sheets
+# Оновлена функція збереження в Google Sheets за колонками
 async def save_to_sheet_async(data: Dict[str, Any]) -> bool:
-    if not WORKSHEET or not HEADERS:
+    if not WORKSHEET:
         logging.error("Google Sheet не підключений")
         return False
     
@@ -490,26 +507,18 @@ async def save_to_sheet_async(data: Dict[str, Any]) -> bool:
 
 def save_to_sheet_sync(data: Dict[str, Any]):
     try:
-        row = []
+        # Знаходимо останній рядок з даними
+        last_row = len(WORKSHEET.get_all_values()) + 1
         
-        # Створюємо рядок у відповідності з заголовками таблиці
-        for header in HEADERS:
-            value = ""
-            header_clean = header.strip()
-            
-            # Шукаємо відповідне поле в наших даних
-            for field_key, header_key in FIELD_MAPPING.items():
-                if header_clean.lower() == header_key.lower():
-                    value = str(data.get(field_key, ""))
-                    break
-            
-            # Якщо заголовок не знайдено в мапінгу, залишаємо пусте значення
-            row.append(value)
+        # Записуємо дані у відповідні колонки
+        for field, column in COLUMN_MAPPING.items():
+            value = str(data.get(field, ""))
+            if value:  # Записуємо тільки якщо є значення
+                cell = f"{column}{last_row}"
+                WORKSHEET.update(cell, value)
+                logging.info(f"Записано в {cell}: {value}")
         
-        WORKSHEET.append_row(row)
-        logging.info(f"Рядок додано в Google Sheet: {row}")
-        logging.info(f"Headers: {HEADERS}")
-        logging.info(f"Data mapping: {data}")
+        logging.info(f"Дані замовлення збережено у рядок {last_row}")
         
     except Exception as e:
         logging.error(f"Помилка при записі в Google Sheet: {e}")
