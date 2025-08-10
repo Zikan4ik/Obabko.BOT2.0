@@ -589,7 +589,7 @@ async def patient_handler(update: Update, context: CallbackContext) -> int:
     """Обробник введення даних пацієнта"""
     patient_name = update.message.text.strip()
     
-    if len(patient_name) < 5:
+    if len(patient_name) < 2:
         await update.message.reply_text(
             "❌ ПІБ пацієнта занадто коротке.\n"
             "Будь ласка, введіть повне ПІБ:"
