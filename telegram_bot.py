@@ -118,28 +118,18 @@ def save_to_sheet(user_data):
         return False
 
 
-# 🔍 Функції валідації
+# 🔍 Функції валідації - ОТКЛЮЧЕНЫ ВСЕ ФИЛЬТРЫ!
 def validate_phone(phone: str) -> bool:
-    """Валідація номера телефону (український формат)"""
-    cleaned = re.sub(r'[\s\-\(\)]', '', phone)
-    pattern = r'^(?:\+380|0)\d{9}$'
-    return bool(re.match(pattern, cleaned))
+    """Отключена валидация телефона - принимает ЛЮБОЙ текст"""
+    return True  # Принимаем любой текст
 
 def validate_date(date_str: str) -> bool:
-    """Валідація дати у форматі DD.MM.YYYY"""
-    pattern = r'^\d{2}\.\d{2}\.\d{4}$'
-    if not re.match(pattern, date_str):
-        return False
-    
-    try:
-        datetime.strptime(date_str, '%d.%m.%Y')
-        return True
-    except ValueError:
-        return False
+    """Отключена валидация даты - принимает ЛЮБОЙ текст"""
+    return True  # Принимаем любой текст
 
 def validate_zone(zone: str) -> bool:
-    """Валідація зони імплантації"""
-    return len(zone.strip()) >= 2
+    """Отключена валидация зоны - принимает ЛЮБОЙ текст"""
+    return True  # Принимаем любой текст
 
 # 🏠 Головне меню
 def get_main_menu_keyboard():
@@ -432,72 +422,68 @@ async def files_handler(update: Update, context: CallbackContext):
 
     return FILES_MODE
 
-# 📝 Обробники замовлення
+# 📝 Обробники замовлення - ВСЕ ФИЛЬТРЫ ОТКЛЮЧЕНЫ!
 async def doctor_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для имени врача"""
     doctor_name = update.message.text.strip()
-    if len(doctor_name) < 2:
-        await update.message.reply_text("❌ ПІБ лікаря занадто коротке. Будь ласка, введіть коректне ПІБ:")
-        return DOCTOR
+    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["doctor"] = doctor_name
     await update.message.reply_text("📞 Введіть <b>контактний номер телефону</b>:\n<i>(наприклад: +380501234567)</i>", parse_mode='HTML')
     return PHONE
 
 async def phone_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для телефона"""
     phone = update.message.text.strip()
-    if not validate_phone(phone):
-        await update.message.reply_text("❌ Некоректний формат номера телефону. Будь ласка, введіть номер у форматі: +380501234567")
-        return PHONE
+    # ОТКЛЮЧЕНА валидация формата - принимаем любой текст
     context.user_data["phone"] = phone
     await update.message.reply_text("🏥 Введіть <b>назву клініки</b>:", parse_mode='HTML')
     return CLINIC
 
 async def clinic_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для клиники"""
     clinic_name = update.message.text.strip()
-    if len(clinic_name) < 3:
-        await update.message.reply_text("❌ Назва клініки занадто коротка. Будь ласка, введіть повну назву:")
-        return CLINIC
+    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["clinic"] = clinic_name
     await update.message.reply_text("📅 Введіть <b>дату здачі</b> у форматі ДД.ММ.РРРР:", parse_mode='HTML')
     return DATETIME
 
 async def datetime_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для даты"""
     date_str = update.message.text.strip()
-    if not validate_date(date_str):
-        await update.message.reply_text("❌ Некоректний формат дати. Будь ласка, введіть дату у форматі <b>ДД.ММ.РРРР</b>", parse_mode='HTML')
-        return DATETIME
+    # ОТКЛЮЧЕНА валидация формата даты - принимаем любой текст
     context.user_data["date"] = date_str
     await update.message.reply_text("👤 Введіть <b>ПІБ пацієнта</b>:", parse_mode='HTML')
     return PATIENT
 
 async def patient_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для пациента"""
     patient_name = update.message.text.strip()
-    if len(patient_name) < 5:
-        await update.message.reply_text("❌ ПІБ пацієнта занадто коротке. Будь ласка, введіть повне ПІБ:")
-        return PATIENT
+    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["patient"] = patient_name
     await update.message.reply_text("🔩 Введіть <b>систему імплантатів</b>:", parse_mode='HTML')
     return IMPLANT_SYSTEM
 
 async def implant_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для системы имплантатов"""
     implant_system = update.message.text.strip()
-    if len(implant_system) < 3:
-        await update.message.reply_text("❌ Назва системи занадто коротка. Будь ласка, введіть повну назву:")
-        return IMPLANT_SYSTEM
+    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["implant_system"] = implant_system
     await update.message.reply_text("🦷 Введіть <b>передбачувану зону встановлення імплантатів</b>:\n<i>Вкажіть у форматі \"номер зуба - діаметр/довжина імплантата\"</i>", parse_mode='HTML')
     return ZONE
 
 async def zone_handler(update: Update, context: CallbackContext) -> int:
+    """Принимает ЛЮБОЙ текст для зоны имплантации - БЕЗ ВСЯКИХ ПРОВЕРОК!"""
     zone = update.message.text.strip()
-    if not validate_zone(zone):
-        await update.message.reply_text("❌ Будь ласка, введіть зону імплантації:")
-        return ZONE
+    
+    # ОТКЛЮЧЕНЫ ВСЕ ПРОВЕРКИ - принимаем любой текст!
+    # Даже пустой текст теперь принимается
     
     context.user_data["user_id"] = update.effective_user.id
     context.user_data["zone"] = zone
     context.user_data["status"] = "Новий"
     context.user_data["timestamp"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     
+    # Показуємо підсумок замовлення
     await show_order_summary(update, context)
 
     success = save_to_sheet(context.user_data)
@@ -521,6 +507,25 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
         )
     
     return MAIN_MENU
+
+# Добавляем недостающую функцию show_order_summary
+async def show_order_summary(update: Update, context: CallbackContext):
+    """Показывает сводку заказа перед сохранением"""
+    data = context.user_data
+    
+    summary_text = (
+        "📋 <b>Підсумок замовлення:</b>\n\n"
+        f"👨‍⚕️ <b>Лікар:</b> {data.get('doctor', 'N/A')}\n"
+        f"📞 <b>Телефон:</b> {data.get('phone', 'N/A')}\n"
+        f"🏥 <b>Клініка:</b> {data.get('clinic', 'N/A')}\n"
+        f"📅 <b>Дата здачі:</b> {data.get('date', 'N/A')}\n"
+        f"👤 <b>Пацієнт:</b> {data.get('patient', 'N/A')}\n"
+        f"🔩 <b>Система:</b> {data.get('implant_system', 'N/A')}\n"
+        f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n\n"
+        "🔄 <i>Обробляємо замовлення...</i>"
+    )
+    
+    await update.message.reply_text(summary_text, parse_mode='HTML')
 
 async def notify_admin_async(context: CallbackContext):
     try:
