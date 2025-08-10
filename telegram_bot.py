@@ -87,6 +87,18 @@ COLUMN_MAPPING = {
     "status": "Z",       # Статус
 }
 
+# Универсальная функция записи в Google Sheets
+def save_to_sheet(user_data):
+    try:
+        row_data = [str(user_data.get(field, "")) for field in COLUMN_MAPPING.keys()]
+        WORKSHEET.append_row(row_data)  # Синхронная запись одной строкой
+        logging.info(f"✅ Дані записані в Google Sheets: {row_data}")
+        return True
+    except Exception as e:
+        logging.error(f"❌ Помилка при записі в Google Sheet: {e}")
+        return False
+
+
 # 🔍 Функції валідації
 def validate_phone(phone: str) -> bool:
     """Валідація номера телефону (український формат)"""
@@ -468,8 +480,8 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     context.user_data["timestamp"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     
     await show_order_summary(update, context)
-    
-    success = await save_to_sheet_async(context.user_data)
+
+    success = save_to_sheet(context.user_data)
     
     if success:
         await notify_admin_async(context)
@@ -506,46 +518,6 @@ success = await save_to_sheet(context.user_data, async_mode=True)
     )
     await update.message.reply_text(summary, parse_mode='HTML')
 
-# Оновлена функція збереження в Google Sheets за колонками
-async def save_to_sheet_async(user_data):
-    # Порядок колонок в Google Sheets (меняешь только здесь при необходимости)
-COLUMN_MAPPING = {
-    "timestamp": "A",        # Дата і час заявки
-    "doctor": "B",           # ПІБ лікаря
-    "phone": "C",            # Телефон
-    "clinic": "D",           # Клініка
-    "date": "E",             # Дата здачі
-    "patient": "F",          # ПІБ пацієнта
-    "implant_system": "G",   # Система імплантів
-    "zone": "H",             # Зона встановлення
-    "status": "I",           # Статус замовлення
-    "user_id": "J"           # Telegram ID
-}
-
-# Универсальная функция записи в Google Sheets
-async def save_to_sheet(user_data, async_mode=True):
-    try:
-        # Формируем строку данных по колонкам
-        row_data = [str(user_data.get(field, "")) for field in COLUMN_MAPPING.keys()]
-        values = [row_data]  # Двумерный список для Google Sheets API
-
-        if async_mode:
-            # Асинхронная запись
-            await sheet.append_rows(values)
-        else:
-            # Синхронная запись в следующий свободный рядок
-            last_row = len(WORKSHEET.get_all_values()) + 1
-            start_col = list(COLUMN_MAPPING.values())[0]
-            end_col = list(COLUMN_MAPPING.values())[-1]
-            cell_range = f"{start_col}{last_row}:{end_col}{last_row}"
-            WORKSHEET.update(cell_range, values)
-
-        logging.info(f"✅ Дані успішно записані в Google Sheets: {values}")
-        return True
-
-    except Exception as e:
-        logging.error(f"❌ Помилка при записі в Google Sheet: {e}")
-        return False
 
 async def notify_admin_async(context: CallbackContext):
     try:
