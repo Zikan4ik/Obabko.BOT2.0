@@ -170,7 +170,7 @@ async def start(update: Update, context: CallbackContext) -> int:
     username = update.effective_user.username or "Невідомо"
     first_name = update.effective_user.first_name or ""
     
-    logging.info(f"Команда /start від користувача {user_id} (@{username})")
+    logging.info(f"Команда /start від користувача {user_id} (@vlasenko_b)")
     
     welcome_text = (
         f"👋 Вітаємо, {first_name}!\n\n"
