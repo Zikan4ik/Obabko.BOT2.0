@@ -74,17 +74,21 @@ WORKSHEET, HEADERS = setup_google_sheets()
 # 🧩 Етапи розмови
 DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE, MAIN_MENU, CHAT_MODE, FILES_MODE = range(10)
 
-# 📊 Відповідність полів бота і таблиці
+# 📊 Відповідність полів бота і таблиці (ВИПРАВЛЕНО)
 FIELD_MAPPING = {
-    "timestamp": "Временная метка",
+    "timestamp": "Час",
     "doctor": "ПІБ лікаря", 
     "phone": "Контактний телефон",
     "clinic": "Назва клініки",
     "date": "дата здачі",
     "patient": "ПІБ пацієнта",
     "implant_system": "Система імплантатів",
-    "zone": "Передбачувана зона встановлення імплантатів Вкажіть в форматі \"номер зуба - диаметер/довжина імплантата\"",
-    "status": "Статус"
+    "zone": "Передбачувана зона встановлення імплантатів",
+    "building_address": "Адреса клініки (місто, вулиця, номер будинку)",
+    "status": "Статус",
+    # Додаткові поля для відповідності з таблицею
+    "from_where": "Звідки ви дізналися про нас (тмксть, дилерить Новій Пошті)",
+    "operation_time": "Яєкий ви плануєте час операції"
 }
 
 # 🔍 Функції валідації
@@ -110,22 +114,30 @@ def validate_zone(zone: str) -> bool:
     """Валідація зони імплантації"""
     return len(zone.strip()) >= 2
 
-# 🏠 Головне меню
+# 🏠 Головне меню (ОНОВЛЕНО)
 def get_main_menu_keyboard():
-    """Створює клавіатуру головного меню"""
+    """Створює клавіатуру головного меню з оновленими пунктами"""
     keyboard = [
-        [InlineKeyboardButton("📝 Нове замовлення", callback_data="new_order"),
-         InlineKeyboardButton("📁 Надіслати файли", callback_data="send_files")],
+        [InlineKeyboardButton("📝 Нове замовлення", callback_data="new_order")],
         [InlineKeyboardButton("💬 Чат з підтримкою", callback_data="chat_support"),
-         InlineKeyboardButton("ℹ️ Довідка", callback_data="help")]
+         InlineKeyboardButton("💰 Прайс", callback_data="price")],
+        [InlineKeyboardButton("🌐 Сайт", callback_data="website"),
+         InlineKeyboardButton("📁 Надіслати файл", callback_data="send_files")],
+        [InlineKeyboardButton("ℹ️ Довідка", callback_data="help")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 async def show_main_menu(update: Update, context: CallbackContext):
-    """Показує головне меню"""
+    """Показує головне меню з красивим оформленням"""
     menu_text = (
-        "🏥 **Система замовлень імплантатів**\n\n"
-        "Оберіть дію:"
+        "🏥 <b>Система замовлень імплантатів</b>\n\n"
+        "🔹 <b>Нове замовлення</b> - оформити замовлення на імплантати\n"
+        "🔹 <b>Чат з підтримкою</b> - зв'язатися з нашими спеціалістами\n" 
+        "🔹 <b>Прайс</b> - переглянути актуальні ціни\n"
+        "🔹 <b>Сайт</b> - відвідати наш офіційний сайт\n"
+        "🔹 <b>Надіслати файл</b> - відправити документи чи фото\n"
+        "🔹 <b>Довідка</b> - допомога по роботі з ботом\n\n"
+        "👆 <i>Оберіть потрібну дію:</i>"
     )
     
     keyboard = get_main_menu_keyboard()
@@ -133,13 +145,13 @@ async def show_main_menu(update: Update, context: CallbackContext):
     if update.callback_query:
         await update.callback_query.edit_message_text(
             menu_text, 
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=keyboard
         )
     else:
         await update.message.reply_text(
             menu_text,
-            parse_mode='Markdown', 
+            parse_mode='HTML', 
             reply_markup=keyboard
         )
     
@@ -152,15 +164,20 @@ async def start(update: Update, context: CallbackContext) -> int:
     first_name = user.first_name or ""
     
     welcome_text = (
-        f"👋 Вітаємо, {first_name}!\n\n"
-        "🏥 **Система замовлень імплантатів**\n\n"
-        "Оберіть потрібну дію:"
+        f"👋 <b>Вітаємо, {first_name}!</b>\n\n"
+        "🏥 <b>Система замовлень імплантатів</b>\n\n"
+        "🎯 За допомогою цього бота ви можете:\n"
+        "• Оформити замовлення на імплантати\n"
+        "• Зв'язатися з нашою підтримкою\n"
+        "• Переглянути прайс-лист\n"
+        "• Надіслати необхідні файли\n\n"
+        "👆 <i>Оберіть потрібну дію:</i>"
     )
     
     keyboard = get_main_menu_keyboard()
     await update.message.reply_text(
         welcome_text,
-        parse_mode='Markdown',
+        parse_mode='HTML',
         reply_markup=keyboard
     )
     
@@ -173,46 +190,87 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
     
     if query.data == "new_order":
         await query.edit_message_text(
-            "👨‍⚕️ **Починаємо оформлення замовлення**\n\n"
-            "Введіть **прізвище лікаря**:",
-            parse_mode='Markdown'
+            "👨‍⚕️ <b>Починаємо оформлення замовлення</b>\n\n"
+            "📝 Введіть <b>ПІБ лікаря</b>:",
+            parse_mode='HTML'
         )
         return DOCTOR
         
     elif query.data == "chat_support":
+        support_text = (
+            "💬 <b>Чат з підтримкою</b>\n\n"
+            "✉️ Напишіть ваше повідомлення, і ми передамо його спеціалісту.\n"
+            "📞 Ви отримаєте відповідь найближчим часом.\n\n"
+            "💡 <i>Для повернення в головне меню використовуйте /menu</i>"
+        )
         await query.edit_message_text(
-            "💬 **Режим чату з підтримкою**\n\n"
-            "Тепер ви можете писати повідомлення, і вони будуть передані в службу підтримки.\n"
-            "Для повернення в головне меню використовуйте /menu\n\n"
-            "Напишіть ваше повідомлення:",
-            parse_mode='Markdown'
+            support_text,
+            parse_mode='HTML'
         )
         return CHAT_MODE
         
     elif query.data == "send_files":
+        files_text = (
+            "📁 <b>Надсилання файлів</b>\n\n"
+            "📤 Надішліть файли (фото, документи, скани) одним або декількома повідомленнями.\n"
+            "🔄 Ми автоматично передамо їх спеціалісту для обробки.\n\n"
+            "💡 <i>Щоб повернутися в меню, використайте /menu</i>"
+        )
         await query.edit_message_text(
-            "📁 **Надсилання файлів**\n\n"
-            "Будь ласка, надішліть файли (фото, документи) одним повідомленням. "
-            "Я перешлю їх адміністратору.\n"
-            "Щоб повернутися в меню, використайте /menu",
-            parse_mode='Markdown'
+            files_text,
+            parse_mode='HTML'
         )
         return FILES_MODE
 
+    elif query.data == "price":
+        price_text = (
+            "💰 <b>Прайс-лист</b>\n\n"
+            "📋 Для отримання актуального прайс-листу напишіть в чаті з підтримкою.\n"
+            "📞 Наші менеджери надішлють вам детальну інформацію про вартість."
+        )
+        
+        keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
+        await query.edit_message_text(
+            price_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return MAIN_MENU
+
+    elif query.data == "website":
+        website_text = (
+            "🌐 <b>Наш офіційний сайт</b>\n\n"
+            "🔗 Посилання на наш сайт ви можете отримати через чат з підтримкою.\n"
+            "💡 На сайті ви знайдете повну інформацію про наші послуги та продукцію."
+        )
+        
+        keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
+        await query.edit_message_text(
+            website_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return MAIN_MENU
+
     elif query.data == "help":
         help_text = (
-            "🆘 **Довідка по боту**\n\n"
-            "**Команди:**\n"
-            "• `/start` - Головне меню\n"
-            "• `/menu` - Повернутися в меню\n"
-            "• `/cancel` - Скасувати операцію\n\n"
-            f"**Підтримка:** {ADMIN_USERNAME}"
+            "🆘 <b>Довідка по боту</b>\n\n"
+            "<b>📋 Доступні команди:</b>\n"
+            "• <code>/start</code> - Головне меню\n"
+            "• <code>/menu</code> - Повернутися в меню\n"
+            "• <code>/cancel</code> - Скасувати операцію\n\n"
+            "<b>📞 Технічна підтримка:</b>\n"
+            f"• Telegram: {ADMIN_USERNAME}\n\n"
+            "<b>💡 Як користуватися ботом:</b>\n"
+            "1. Оберіть потрібну дію в головному меню\n"
+            "2. Слідуйте інструкціям бота\n"
+            "3. При виникненні питань звертайтеся в підтримку"
         )
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
         await query.edit_message_text(
             help_text,
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return MAIN_MENU
@@ -220,256 +278,35 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
     elif query.data == "back_to_menu":
         return await show_main_menu(update, context)
 
-# 💬 Чат з підтримкою
+# 💬 Чат з підтримкою (ВИПРАВЛЕНО)
 async def chat_handler(update: Update, context: CallbackContext) -> int:
-    """Обробник повідомлень у режимі чату"""
+    """Обробник повідомлень у режимі чату - тепер відправляється @vlasenko_b"""
     user_message = update.message.text
     user = update.effective_user
     username = user.username or "Невідомо"
     first_name = user.first_name or ""
     
     admin_msg = (
-        "💬 **ПОВІДОМЛЕННЯ ВІД КОРИСТУВАЧА**\n\n"
-        f"👤 **Користувач:** {first_name} (@{username})\n"
-        f"🆔 **ID:** `{user.id}`\n"
-        f"📝 **Повідомлення:**\n{user_message}"
+        "💬 <b>ПОВІДОМЛЕННЯ ВІД КОРИСТУВАЧА</b>\n\n"
+        f"👤 <b>Користувач:</b> {first_name} (@{username})\n"
+        f"🆔 <b>ID:</b> <code>{user.id}</code>\n"
+        f"📝 <b>Повідомлення:</b>\n{user_message}\n\n"
+        f"📞 <b>Відповідь через:</b> {ADMIN_USERNAME}"
     )
     
     try:
         await context.bot.send_message(
             chat_id=ADMIN_CHAT_ID,
             text=admin_msg,
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
         
         await update.message.reply_text(
-            "✅ Ваше повідомлення відправлено в службу підтримки!\n"
-            "Ми зв'яжемося з вами найближчим часом.\n\n"
-            "Ви можете продовжити писати або повернутися в /menu"
+            f"✅ <b>Ваше повідомлення відправлено!</b>\n\n"
+            f"📞 Наш спеціаліст {ADMIN_USERNAME} зв'яжеться з вами найближчим часом.\n\n"
+            "💡 <i>Ви можете продовжити писати або повернутися в</i> /menu",
+            parse_mode='HTML'
         )
-        
-    except Exception as e:
-        logging.error(f"Помилка відправлення повідомлення адміну: {e}")
-        await update.message.reply_text(
-            "❌ Виникла помилка при відправленні повідомлення.\n"
-            "Будь ласка, спробуйте пізніше або використайте /menu"
-        )
-    
-    return CHAT_MODE
-
-# 📁 Надсилання файлів
-async def files_handler(update: Update, context: CallbackContext):
-    """Обробник надсилання файлів"""
-    user = update.effective_user
-    username = user.username or "Невідомо"
-    first_name = user.first_name or ""
-
-    message_type = update.message.effective_attachment
-    
-    if message_type:
-        caption = f"📁 **Файл від користувача**\n\n" \
-                  f"👤 **Користувач:** {first_name} (@{username})\n" \
-                  f"🆔 **ID:** `{user.id}`\n"
-        
-        try:
-            await context.bot.forward_message(
-                chat_id=ADMIN_CHAT_ID,
-                from_chat_id=update.message.chat_id,
-                message_id=update.message.message_id
-            )
-            await context.bot.send_message(
-                chat_id=ADMIN_CHAT_ID,
-                text=caption,
-                parse_mode='Markdown'
-            )
-            
-            await update.message.reply_text(
-                "✅ Файл успішно відправлено адміністратору.\n"
-                "Ви можете надіслати ще файли або повернутися в /menu"
-            )
-
-        except Exception as e:
-            logging.error(f"Помилка пересилання файлу: {e}")
-            await update.message.reply_text(
-                "❌ Виникла помилка при відправленні файлу.\n"
-                "Будь ласка, спробуйте пізніше або використайте /menu"
-            )
-    else:
-        await update.message.reply_text(
-            "Будь ласка, надішліть файл. Щоб повернутися в головне меню, використайте /menu"
-        )
-
-    return FILES_MODE
-
-# 📝 Обробники замовлення
-# (Логіка обробників doctor_handler, phone_handler, clinic_handler і т.д. залишається без змін)
-
-async def doctor_handler(update: Update, context: CallbackContext) -> int:
-    doctor_name = update.message.text.strip()
-    if len(doctor_name) < 2:
-        await update.message.reply_text("❌ Прізвище лікаря занадто коротке. Будь ласка, введіть коректне прізвище:")
-        return DOCTOR
-    context.user_data["doctor"] = doctor_name
-    await update.message.reply_text("📞 Введіть **контактний номер телефону**:\n_(наприклад: +380501234567)_", parse_mode='Markdown')
-    return PHONE
-
-async def phone_handler(update: Update, context: CallbackContext) -> int:
-    phone = update.message.text.strip()
-    if not validate_phone(phone):
-        await update.message.reply_text("❌ Некоректний формат номера телефону. Будь ласка, введіть номер у форматі: +380501234567")
-        return PHONE
-    context.user_data["phone"] = phone
-    await update.message.reply_text("🏥 Введіть **назву клініки**:", parse_mode='Markdown')
-    return CLINIC
-
-async def clinic_handler(update: Update, context: CallbackContext) -> int:
-    clinic_name = update.message.text.strip()
-    if len(clinic_name) < 3:
-        await update.message.reply_text("❌ Назва клініки занадто коротка. Будь ласка, введіть повну назву:")
-        return CLINIC
-    context.user_data["clinic"] = clinic_name
-    await update.message.reply_text("📅 Введіть **дату замовлення** у форматі ДД.ММ.РРРР:", parse_mode='Markdown')
-    return DATETIME
-
-async def datetime_handler(update: Update, context: CallbackContext) -> int:
-    date_str = update.message.text.strip()
-    if not validate_date(date_str):
-        await update.message.reply_text("❌ Некоректний формат дати. Будь ласка, введіть дату у форматі **ДД.ММ.РРРР**", parse_mode='Markdown')
-        return DATETIME
-    context.user_data["date"] = date_str
-    await update.message.reply_text("👤 Введіть **ПІБ пацієнта**:", parse_mode='Markdown')
-    return PATIENT
-
-async def patient_handler(update: Update, context: CallbackContext) -> int:
-    patient_name = update.message.text.strip()
-    if len(patient_name) < 5:
-        await update.message.reply_text("❌ ПІБ пацієнта занадто коротке. Будь ласка, введіть повне ПІБ:")
-        return PATIENT
-    context.user_data["patient"] = patient_name
-    await update.message.reply_text("🔩 Введіть **систему імплантатів**:", parse_mode='Markdown')
-    return IMPLANT_SYSTEM
-
-async def implant_handler(update: Update, context: CallbackContext) -> int:
-    implant_system = update.message.text.strip()
-    if len(implant_system) < 3:
-        await update.message.reply_text("❌ Назва системи занадто коротка. Будь ласка, введіть повну назву:")
-        return IMPLANT_SYSTEM
-    context.user_data["implant_system"] = implant_system
-    await update.message.reply_text("🦷 Введіть **зону імплантації**:", parse_mode='Markdown')
-    return ZONE
-
-async def zone_handler(update: Update, context: CallbackContext) -> int:
-    zone = update.message.text.strip()
-    if not validate_zone(zone):
-        await update.message.reply_text("❌ Будь ласка, введіть зону імплантації:")
-        return ZONE
-    
-    context.user_data["user_id"] = update.effective_user.id
-    context.user_data["zone"] = zone
-    context.user_data["status"] = "Новий"
-    context.user_data["timestamp"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    
-    await show_order_summary(update, context)
-    
-    success = await save_to_sheet_async(context.user_data)
-    
-    if success:
-        await notify_admin_async(context)
-        keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
-        await update.message.reply_text(
-            "✅ **Замовлення успішно прийнято і збережено!**\n\nАдміністратор отримав сповіщення і зв'яжеться з вами.",
-            parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    else:
-        keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
-        await update.message.reply_text(
-            "⚠️ **Замовлення прийнято, але виникла проблема зі збереженням.**\nАдміністратор був сповіщений.",
-            parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    
-    return MAIN_MENU
-
-async def show_order_summary(update: Update, context: CallbackContext):
-    data = context.user_data
-    summary = (
-        "📋 **Зведення вашого замовлення:**\n\n"
-        f"👨‍⚕️ **Лікар:** {data.get('doctor', 'N/A')}\n"
-        f"📞 **Телефон:** {data.get('phone', 'N/A')}\n"
-        f"🏥 **Клініка:** {data.get('clinic', 'N/A')}\n"
-        f"📅 **Дата:** {data.get('date', 'N/A')}\n"
-        f"👤 **Пацієнт:** {data.get('patient', 'N/A')}\n"
-        f"🔩 **Система:** {data.get('implant_system', 'N/A')}\n"
-        f"🦷 **Зона:** {data.get('zone', 'N/A')}\n"
-        f"⏰ **Час створення:** {data.get('timestamp', 'N/A')}"
-    )
-    await update.message.reply_text(summary, parse_mode='Markdown')
-
-async def save_to_sheet_async(data: Dict[str, Any]) -> bool:
-    if not WORKSHEET or not HEADERS:
-        logging.error("Google Sheet не підключений")
-        return False
-    
-    try:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, save_to_sheet_sync, data)
-        return True
-    except Exception as e:
-        logging.error(f"Помилка збереження в Google Sheet: {e}")
-        return False
-
-def save_to_sheet_sync(data: Dict[str, Any]):
-    try:
-        row = []
-        for header in HEADERS:
-            value = ""
-            for field_key, header_key in FIELD_MAPPING.items():
-                if header.strip() == header_key.strip():
-                    value = data.get(field_key, "")
-                    break
-            row.append(str(value))
-        
-        WORKSHEET.append_row(row)
-        logging.info(f"Рядок додано в Google Sheet: {row}")
-        
-    except Exception as e:
-        logging.error(f"Помилка при записі в Google Sheet: {e}")
-        raise
-
-async def notify_admin_async(context: CallbackContext):
-    try:
-        data = context.user_data
-        user_id = data.get('user_id', 'N/A')
-        
-        msg = (
-            "🆕 **НОВЕ ЗАМОВЛЕННЯ ІМПЛАНТАТА**\n\n"
-            f"👨‍⚕️ **Лікар:** {data.get('doctor', 'N/A')}\n"
-            f"📞 **Телефон:** {data.get('phone', 'N/A')}\n"
-            f"🏥 **Клініка:** {data.get('clinic', 'N/A')}\n"
-            f"📅 **Дата замовлення:** {data.get('date', 'N/A')}\n"
-            f"👤 **Пацієнт:** {data.get('patient', 'N/A')}\n"
-            f"🔩 **Система:** {data.get('implant_system', 'N/A')}\n"
-            f"🦷 **Зона:** {data.get('zone', 'N/A')}\n"
-            f"📌 **Статус:** {data.get('status', 'N/A')}\n"
-            f"⏰ **Час:** {data.get('timestamp', 'N/A')}\n"
-            f"🆔 **User ID:** `{user_id}`"
-        )
-        
-        admin_keyboard = [
-            [InlineKeyboardButton("✅ Прийняти", callback_data=f"accept_{user_id}")],
-            [InlineKeyboardButton("❌ Відхилити", callback_data=f"reject_{user_id}")],
-            [InlineKeyboardButton("💬 Відповісти", callback_data=f"reply_{user_id}")],
-        ]
-        
-        await context.bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=msg,
-            parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup(admin_keyboard)
-        )
-        
-        logging.info("Сповіщення адміністратору відправлено")
         
     except Exception as e:
         logging.error(f"Помилка відправлення сповіщення адміністратору: {e}")
@@ -494,8 +331,9 @@ async def admin_callback_handler(update: Update, context: CallbackContext):
         try:
             await context.bot.send_message(
                 chat_id=int(user_id),
-                text="✅ **Ваше замовлення прийнято!**",
-                parse_mode='Markdown'
+                text="✅ <b>Ваше замовлення прийнято!</b>\n\n"
+                     f"📞 Наш спеціаліст {ADMIN_USERNAME} зв'яжеться з вами найближчим часом.",
+                parse_mode='HTML'
             )
         except Exception as e:
             logging.error(f"Не вдалося відправити сповіщення користувачу {user_id}: {e}")
@@ -510,8 +348,9 @@ async def admin_callback_handler(update: Update, context: CallbackContext):
         try:
             await context.bot.send_message(
                 chat_id=int(user_id),
-                text="❌ **Ваше замовлення відхилено**\n\nЗв'яжіться з нами для уточнення деталей.",
-                parse_mode='Markdown'
+                text="❌ <b>Ваше замовлення відхилено</b>\n\n"
+                     f"📞 Зв'яжіться з {ADMIN_USERNAME} для уточнення деталей.",
+                parse_mode='HTML'
             )
         except Exception as e:
             logging.error(f"Не вдалося відправити сповіщення користувачу {user_id}: {e}")
@@ -532,8 +371,8 @@ async def admin_message_handler(update: Update, context: CallbackContext):
             admin_message = update.message.text
             await context.bot.send_message(
                 chat_id=int(reply_to),
-                text=f"📩 **Повідомлення від адміністратора:**\n\n{admin_message}",
-                parse_mode='Markdown'
+                text=f"📩 <b>Повідомлення від адміністратора:</b>\n\n{admin_message}",
+                parse_mode='HTML'
             )
             
             await update.message.reply_text(
@@ -554,8 +393,8 @@ async def menu_command(update: Update, context: CallbackContext) -> int:
 async def cancel_handler(update: Update, context: CallbackContext) -> int:
     keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
     await update.message.reply_text(
-        "❌ **Операцію скасовано**",
-        parse_mode='Markdown',
+        "❌ <b>Операцію скасовано</b>",
+        parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return MAIN_MENU
@@ -588,11 +427,11 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|send_files|help|back_to_menu)$")
+            CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|send_files|help|back_to_menu|price|website)$")
         ],
         states={
             MAIN_MENU: [
-                CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|send_files|help|back_to_menu)$")
+                CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|send_files|help|back_to_menu|price|website)$")
             ],
             DOCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, doctor_handler)],
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)],
@@ -630,4 +469,243 @@ def main():
         logging.info("Бот зупинено")
 
 if __name__ == '__main__':
-    main()
+    main()лення повідомлення адміну: {e}")
+        await update.message.reply_text(
+            "❌ Виникла помилка при відправленні повідомлення.\n"
+            "Будь ласка, спробуйте пізніше або використайте /menu"
+        )
+    
+    return CHAT_MODE
+
+# 📁 Надсилання файлів (ВИПРАВЛЕНО)
+async def files_handler(update: Update, context: CallbackContext):
+    """Обробник надсилання файлів - тепер відправляється @vlasenko_b"""
+    user = update.effective_user
+    username = user.username or "Невідомо"
+    first_name = user.first_name or ""
+
+    message_type = update.message.effective_attachment
+    
+    if message_type:
+        caption = f"📁 <b>Файл від користувача</b>\n\n" \
+                  f"👤 <b>Користувач:</b> {first_name} (@{username})\n" \
+                  f"🆔 <b>ID:</b> <code>{user.id}</code>\n" \
+                  f"📞 <b>Обробка:</b> {ADMIN_USERNAME}"
+        
+        try:
+            await context.bot.forward_message(
+                chat_id=ADMIN_CHAT_ID,
+                from_chat_id=update.message.chat_id,
+                message_id=update.message.message_id
+            )
+            await context.bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=caption,
+                parse_mode='HTML'
+            )
+            
+            await update.message.reply_text(
+                f"✅ <b>Файл успішно відправлено!</b>\n\n"
+                f"📞 Спеціаліст {ADMIN_USERNAME} опрацює ваш файл.\n\n"
+                "💡 <i>Ви можете надіслати ще файли або повернутися в</i> /menu",
+                parse_mode='HTML'
+            )
+
+        except Exception as e:
+            logging.error(f"Помилка пересилання файлу: {e}")
+            await update.message.reply_text(
+                "❌ Виникла помилка при відправленні файлу.\n"
+                "Будь ласка, спробуйте пізніше або використайте /menu"
+            )
+    else:
+        await update.message.reply_text(
+            "📁 Будь ласка, надішліть файл.\n\n💡 Щоб повернутися в головне меню, використайте /menu"
+        )
+
+    return FILES_MODE
+
+# 📝 Обробники замовлення
+async def doctor_handler(update: Update, context: CallbackContext) -> int:
+    doctor_name = update.message.text.strip()
+    if len(doctor_name) < 2:
+        await update.message.reply_text("❌ ПІБ лікаря занадто коротке. Будь ласка, введіть коректне ПІБ:")
+        return DOCTOR
+    context.user_data["doctor"] = doctor_name
+    await update.message.reply_text("📞 Введіть <b>контактний номер телефону</b>:\n<i>(наприклад: +380501234567)</i>", parse_mode='HTML')
+    return PHONE
+
+async def phone_handler(update: Update, context: CallbackContext) -> int:
+    phone = update.message.text.strip()
+    if not validate_phone(phone):
+        await update.message.reply_text("❌ Некоректний формат номера телефону. Будь ласка, введіть номер у форматі: +380501234567")
+        return PHONE
+    context.user_data["phone"] = phone
+    await update.message.reply_text("🏥 Введіть <b>назву клініки</b>:", parse_mode='HTML')
+    return CLINIC
+
+async def clinic_handler(update: Update, context: CallbackContext) -> int:
+    clinic_name = update.message.text.strip()
+    if len(clinic_name) < 3:
+        await update.message.reply_text("❌ Назва клініки занадто коротка. Будь ласка, введіть повну назву:")
+        return CLINIC
+    context.user_data["clinic"] = clinic_name
+    await update.message.reply_text("📅 Введіть <b>дату здачі</b> у форматі ДД.ММ.РРРР:", parse_mode='HTML')
+    return DATETIME
+
+async def datetime_handler(update: Update, context: CallbackContext) -> int:
+    date_str = update.message.text.strip()
+    if not validate_date(date_str):
+        await update.message.reply_text("❌ Некоректний формат дати. Будь ласка, введіть дату у форматі <b>ДД.ММ.РРРР</b>", parse_mode='HTML')
+        return DATETIME
+    context.user_data["date"] = date_str
+    await update.message.reply_text("👤 Введіть <b>ПІБ пацієнта</b>:", parse_mode='HTML')
+    return PATIENT
+
+async def patient_handler(update: Update, context: CallbackContext) -> int:
+    patient_name = update.message.text.strip()
+    if len(patient_name) < 5:
+        await update.message.reply_text("❌ ПІБ пацієнта занадто коротке. Будь ласка, введіть повне ПІБ:")
+        return PATIENT
+    context.user_data["patient"] = patient_name
+    await update.message.reply_text("🔩 Введіть <b>систему імплантатів</b>:", parse_mode='HTML')
+    return IMPLANT_SYSTEM
+
+async def implant_handler(update: Update, context: CallbackContext) -> int:
+    implant_system = update.message.text.strip()
+    if len(implant_system) < 3:
+        await update.message.reply_text("❌ Назва системи занадто коротка. Будь ласка, введіть повну назву:")
+        return IMPLANT_SYSTEM
+    context.user_data["implant_system"] = implant_system
+    await update.message.reply_text("🦷 Введіть <b>передбачувану зону встановлення імплантатів</b>:\n<i>Вкажіть у форматі \"номер зуба - діаметр/довжина імплантата\"</i>", parse_mode='HTML')
+    return ZONE
+
+async def zone_handler(update: Update, context: CallbackContext) -> int:
+    zone = update.message.text.strip()
+    if not validate_zone(zone):
+        await update.message.reply_text("❌ Будь ласка, введіть зону імплантації:")
+        return ZONE
+    
+    context.user_data["user_id"] = update.effective_user.id
+    context.user_data["zone"] = zone
+    context.user_data["status"] = "Новий"
+    context.user_data["timestamp"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    context.user_data["building_address"] = ""  # Додано для відповідності з таблицею
+    context.user_data["from_where"] = ""  # Додано для відповідності з таблицею
+    context.user_data["operation_time"] = ""  # Додано для відповідності з таблицею
+    
+    await show_order_summary(update, context)
+    
+    success = await save_to_sheet_async(context.user_data)
+    
+    if success:
+        await notify_admin_async(context)
+        keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
+        await update.message.reply_text(
+            "✅ <b>Замовлення успішно прийнято і збережено!</b>\n\n"
+            f"📞 Спеціаліст {ADMIN_USERNAME} зв'яжеться з вами найближчим часом.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
+        await update.message.reply_text(
+            "⚠️ <b>Замовлення прийнято, але виникла проблема зі збереженням.</b>\n"
+            f"📞 {ADMIN_USERNAME} був сповіщений.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    
+    return MAIN_MENU
+
+async def show_order_summary(update: Update, context: CallbackContext):
+    data = context.user_data
+    summary = (
+        "📋 <b>Зведення вашого замовлення:</b>\n\n"
+        f"👨‍⚕️ <b>Лікар:</b> {data.get('doctor', 'N/A')}\n"
+        f"📞 <b>Телефон:</b> {data.get('phone', 'N/A')}\n"
+        f"🏥 <b>Клініка:</b> {data.get('clinic', 'N/A')}\n"
+        f"📅 <b>Дата здачі:</b> {data.get('date', 'N/A')}\n"
+        f"👤 <b>Пацієнт:</b> {data.get('patient', 'N/A')}\n"
+        f"🔩 <b>Система:</b> {data.get('implant_system', 'N/A')}\n"
+        f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n"
+        f"⏰ <b>Час створення:</b> {data.get('timestamp', 'N/A')}"
+    )
+    await update.message.reply_text(summary, parse_mode='HTML')
+
+# ВИПРАВЛЕНО: функція збереження в Google Sheets
+async def save_to_sheet_async(data: Dict[str, Any]) -> bool:
+    if not WORKSHEET or not HEADERS:
+        logging.error("Google Sheet не підключений")
+        return False
+    
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, save_to_sheet_sync, data)
+        return True
+    except Exception as e:
+        logging.error(f"Помилка збереження в Google Sheet: {e}")
+        return False
+
+def save_to_sheet_sync(data: Dict[str, Any]):
+    try:
+        row = []
+        
+        # Створюємо рядок у відповідності з заголовками таблиці
+        for header in HEADERS:
+            value = ""
+            header_clean = header.strip()
+            
+            # Шукаємо відповідне поле в наших даних
+            for field_key, header_key in FIELD_MAPPING.items():
+                if header_clean.lower() == header_key.lower():
+                    value = str(data.get(field_key, ""))
+                    break
+            
+            # Якщо заголовок не знайдено в мапінгу, залишаємо пусте значення
+            row.append(value)
+        
+        WORKSHEET.append_row(row)
+        logging.info(f"Рядок додано в Google Sheet: {row}")
+        logging.info(f"Headers: {HEADERS}")
+        logging.info(f"Data mapping: {data}")
+        
+    except Exception as e:
+        logging.error(f"Помилка при записі в Google Sheet: {e}")
+        raise
+
+async def notify_admin_async(context: CallbackContext):
+    try:
+        data = context.user_data
+        user_id = data.get('user_id', 'N/A')
+        
+        msg = (
+            "🆕 <b>НОВЕ ЗАМОВЛЕННЯ ІМПЛАНТАТА</b>\n\n"
+            f"👨‍⚕️ <b>Лікар:</b> {data.get('doctor', 'N/A')}\n"
+            f"📞 <b>Телефон:</b> {data.get('phone', 'N/A')}\n"
+            f"🏥 <b>Клініка:</b> {data.get('clinic', 'N/A')}\n"
+            f"📅 <b>Дата здачі:</b> {data.get('date', 'N/A')}\n"
+            f"👤 <b>Пацієнт:</b> {data.get('patient', 'N/A')}\n"
+            f"🔩 <b>Система:</b> {data.get('implant_system', 'N/A')}\n"
+            f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n"
+            f"📌 <b>Статус:</b> {data.get('status', 'N/A')}\n"
+            f"⏰ <b>Час:</b> {data.get('timestamp', 'N/A')}\n"
+            f"🆔 <b>User ID:</b> <code>{user_id}</code>"
+        )
+        
+        admin_keyboard = [
+            [InlineKeyboardButton("✅ Прийняти", callback_data=f"accept_{user_id}")],
+            [InlineKeyboardButton("❌ Відхилити", callback_data=f"reject_{user_id}")],
+            [InlineKeyboardButton("💬 Відповісти", callback_data=f"reply_{user_id}")],
+        ]
+        
+        await context.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=msg,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(admin_keyboard)
+        )
+        
+        logging.info("Сповіщення адміністратору відправлено")
+        
+    except Exception as e:
+        logging.error(f"Помилка відправ
