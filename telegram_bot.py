@@ -114,52 +114,38 @@ def save_to_sheet(user_data):
             column_letter = chr(65 + col_index)  # A, B, C, etc.
             value_to_insert = ""
             
-            # ПІБ лікаря - шукаємо різні варіанти
-            if any(keyword in header_lower for keyword in [
-                'лікар', 'doctor', 'піб лікар', 'лікаря', 'врач'
-            ]):
+            # ПІБ лікаря - точне співпадіння з таблицею
+            if header.strip() == "ПІБ лікаря":
                 value_to_insert = user_mapping['doctor']
                 logging.info(f"🏥 Лікар '{value_to_insert}' -> колонка {column_letter} ({header})")
             
-            # Телефон
-            elif any(keyword in header_lower for keyword in [
-                'телефон', 'phone', 'контакт', 'номер', 'тел'
-            ]):
+            # Контактний телефон - точне співпадіння
+            elif header.strip() == "Контактний телефон":
                 value_to_insert = user_mapping['phone']
                 logging.info(f"📞 Телефон '{value_to_insert}' -> колонка {column_letter} ({header})")
             
-            # Клініка
-            elif any(keyword in header_lower for keyword in [
-                'клініка', 'clinic', 'клиника', 'назва клінік', 'название клиник'
-            ]):
+            # Назва клініки - точне співпадіння
+            elif header.strip() == "Назва клініки":
                 value_to_insert = user_mapping['clinic']
                 logging.info(f"🏥 Клініка '{value_to_insert}' -> колонка {column_letter} ({header})")
             
-            # Дата здачі
-            elif any(keyword in header_lower for keyword in [
-                'дата здачі', 'дата здач', 'date', 'дата', 'срок'
-            ]):
+            # Дата здачі - точне співпадіння
+            elif "дата здачі" in header_lower:
                 value_to_insert = user_mapping['date']
                 logging.info(f"📅 Дата '{value_to_insert}' -> колонка {column_letter} ({header})")
             
-            # ПІБ пацієнта
-            elif any(keyword in header_lower for keyword in [
-                'пацієнт', 'patient', 'піб пацієнт', 'пациент', 'больной'
-            ]):
+            # ПІБ пацієнта - точне співпадіння
+            elif header.strip() == "ПІБ пацієнта":
                 value_to_insert = user_mapping['patient']
                 logging.info(f"👤 Пацієнт '{value_to_insert}' -> колонка {column_letter} ({header})")
             
-            # Система імплантатів
-            elif any(keyword in header_lower for keyword in [
-                'система', 'implant', 'імплант', 'имплант', 'система імплант'
-            ]):
+            # Система імплантатів - точне співпадіння
+            elif header.strip() == "Система імплантатів":
                 value_to_insert = user_mapping['implant_system']
                 logging.info(f"🔩 Система '{value_to_insert}' -> колонка {column_letter} ({header})")
             
-            # Зона встановлення
-            elif any(keyword in header_lower for keyword in [
-                'зона', 'zone', 'зона встановлення', 'область', 'место'
-            ]):
+            # Передбачувана зона встановлення імплантатів - точне співпадіння з довгим заголовком
+            elif "передбачувана зона встановлення імплантатів" in header_lower:
                 value_to_insert = user_mapping['zone']
                 logging.info(f"🦷 Зона '{value_to_insert}' -> колонка {column_letter} ({header})")
             
@@ -572,7 +558,7 @@ async def implant_handler(update: Update, context: CallbackContext) -> int:
     implant_system = update.message.text.strip()
     # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["implant_system"] = implant_system
-    await update.message.reply_text("🦷 Введіть <b>передбачувану зону встановлення імплантатів</b>:\n<i>Вкажіть у форматі \"номер зуба - діаметр/довжина імплантата\"</i>", parse_mode='HTML')
+    await update.message.reply_text("🦷 Введіть <b>передбачувану зону встановлення імплантатів</b>:\n<i>Вкажіть в форматі \"номер зуба - діаметр/довжина імплантата\"</i>", parse_mode='HTML')
     return ZONE
 
 async def zone_handler(update: Update, context: CallbackContext) -> int:
