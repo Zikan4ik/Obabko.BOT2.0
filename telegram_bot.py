@@ -507,18 +507,29 @@ async def show_order_summary(update: Update, context: CallbackContext):
     await update.message.reply_text(summary, parse_mode='HTML')
 
 # Оновлена функція збереження в Google Sheets за колонками
-async def save_to_sheet_async(data: Dict[str, Any]) -> bool:
-    if not WORKSHEET:
-        logging.error("Google Sheet не підключений")
-        return False
-    
+async def save_to_sheet_async(user_data):
     try:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, save_to_sheet_sync, data)
+        values = [[
+            user_data.get("timestamp", ""),
+            user_data.get("doctor", ""),
+            user_data.get("phone", ""),
+            user_data.get("clinic", ""),
+            user_data.get("date", ""),
+            user_data.get("patient", ""),
+            user_data.get("implant_system", ""),
+            user_data.get("zone", ""),
+            user_data.get("status", ""),
+            user_data.get("user_id", "")
+        ]]
+
+        # Пример для gspread_asyncio:
+        await sheet.append_rows(values)  # Должно быть именно [[...]]
         return True
+
     except Exception as e:
-        logging.error(f"Помилка збереження в Google Sheet: {e}")
+        logging.error(f"Помилка при записі в Google Sheet: {e}")
         return False
+
 
 def save_to_sheet_sync(data: Dict[str, Any]):
     try:
