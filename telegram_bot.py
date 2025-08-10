@@ -219,32 +219,47 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
         return FILES_MODE
 
     elif query.data == "price":
-        # Надсилаємо прайс-листи як фото
-        await query.message.reply_photo(
-            photo="AgACAgIAAxkBAAICNmda6Mxv8bPEaK95ZqD25N4nrlwqAAJ07jEbDy-pSvGEoq_uPfNZAQADAgADeQADNgQ",
-            caption="💰 <b>Прайс-лист: Хірургічні шаблони</b>\n\nАктуальні ціни на хірургічні шаблони з опорою на зуби:",
-            parse_mode='HTML'
-        )
+        try:
+            # Надсилаємо прайс-листи як локальні файли
+            with open("price_1.jpg", "rb") as photo1:
+                await query.message.reply_photo(
+                    photo=photo1,
+                    caption="💰 <b>Прайс-лист: Хірургічні шаблони</b>\n\nАктуальні ціни на хірургічні шаблони з опорою на зуби:",
+                    parse_mode='HTML'
+                )
+            
+            with open("price_2.jpg", "rb") as photo2:
+                await query.message.reply_photo(
+                    photo=photo2,
+                    caption="💰 <b>Прайс-лист: Різні послуги</b>\n\nПовний перелік наших послуг та їх вартість:",
+                    parse_mode='HTML'
+                )
+            
+            with open("price_3.jpg", "rb") as photo3:
+                await query.message.reply_photo(
+                    photo=photo3,
+                    caption="💰 <b>Прайс-лист: Основні послуги</b>\n\nДетальна інформація про наші основні послуги:",
+                    parse_mode='HTML'
+                )
+            
+            keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
+            await query.message.reply_text(
+                "📋 <b>Прайс-листи надіслано!</b>\n\n"
+                "📞 Для уточнення деталей або індивідуальних розрахунків зв'яжіться з нашою підтримкою.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            
+        except FileNotFoundError as e:
+            logging.error(f"Файл прайсу не знайдено: {e}")
+            keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
+            await query.message.reply_text(
+                "❌ <b>Помилка завантаження прайсу</b>\n\n"
+                "📞 Зверніться до підтримки для отримання актуального прайс-листа.",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         
-        await query.message.reply_photo(
-            photo="AgACAgIAAxkBAAICOWda6MxrGCKN68l8WuUhYf5W5NBEAAJB7jEbDy-pShaH1LgtPXHxAQADAgADeQADNgQ",
-            caption="💰 <b>Прайс-лист: Різні послуги</b>\n\nПовний перелік наших послуг та їх вартість:",
-            parse_mode='HTML'
-        )
-        
-        await query.message.reply_photo(
-            photo="AgACAgIAAxkBAAICOGda6MxsEaG_cjWUBplttTXUQiPFAAJA7jEbDy-pStCB5_hRy0YkAQADAgADeQADNgQ",
-            caption="💰 <b>Прайс-лист: Основні послуги</b>\n\nДетальна інформація про наші основні послуги:",
-            parse_mode='HTML'
-        )
-        
-        keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
-        await query.message.reply_text(
-            "📋 <b>Прайс-листи надіслано!</b>\n\n"
-            "📞 Для уточнення деталей або індивідуальних розрахунків зв'яжіться з нашою підтримкою.",
-            parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
         return MAIN_MENU
 
     elif query.data == "website":
