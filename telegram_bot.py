@@ -89,9 +89,28 @@ COLUMN_MAPPING = {
 
 # Универсальная функция записи в Google Sheets
 def save_to_sheet(user_data):
+    """Записує дані користувача в таблицю Google Sheets.
+
+    Під час запису використовується режим USER_ENTERED, щоб значення оброблялися
+    Google Sheets (наприклад, дати й числа автоматично форматуються). Якщо
+    лист не ініціалізований, функція повертає False.
+
+    Args:
+        user_data (dict): Дані, зібрані ботом по полях COLUMN_MAPPING.
+
+    Returns:
+        bool: True, якщо запис вдалася, інакше False.
+    """
     try:
+        # Переконуємося, що робочий лист ініціалізований
+        if not WORKSHEET:
+            logging.error("WORKSHEET is not initialized. Cannot write to Google Sheet.")
+            return False
+        # Формуємо список значень у правильному порядку згідно COLUMN_MAPPING
         row_data = [str(user_data.get(field, "")) for field in COLUMN_MAPPING.keys()]
-        WORKSHEET.append_row(row_data)  # Синхронная запись одной строкой
+        # Записуємо рядок у таблицю. USER_ENTERED дозволяє Google Sheets трактувати
+        # значення (наприклад, розпізнати дату).
+        WORKSHEET.append_row(row_data, value_input_option='USER_ENTERED')
         logging.info(f"✅ Дані записані в Google Sheets: {row_data}")
         return True
     except Exception as e:
@@ -275,19 +294,19 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
         return MAIN_MENU
 
     elif query.data == "website":
+        # Повідомляємо користувачу про сайт без кнопок, що ведуть на старий URL.
         website_text = (
             f"🌐 <b>Наш офіційний сайт</b>\n\n"
-            f"🔗 <a href='{WEBSITE_URL}'>ObaBko Lab - Цифрова стоматологія</a>\n\n"
+            f"🔗 ObaBko Lab - Цифрова стоматологія: {WEBSITE_URL}\n\n"
             "💡 На сайті ви знайдете:\n"
             "• Повну інформацію про наші послуги\n"
             "• Портфоліо робіт\n"
             "• Контактні дані\n"
-            "• Форму для замовлення\n\n"
-            "📱 Перейдіть за посиланням, щоб відвідати наш сайт!"
+            "• Форму для замовлення\n"
         )
-        
+
+        # Тепер додаємо лише кнопку для повернення в меню, не передаючи URL
         keyboard = [
-            [InlineKeyboardButton("🌐 Відкрити сайт", url=WEBSITE_URL)],
             [InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]
         ]
         await query.edit_message_text(
@@ -503,7 +522,6 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     
     return MAIN_MENU
 
-success = await save_to_sheet(context.user_data, async_mode=True)
 async def notify_admin_async(context: CallbackContext):
     try:
         data = context.user_data
