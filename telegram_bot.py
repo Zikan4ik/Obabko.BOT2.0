@@ -30,6 +30,14 @@ WORKSHEET_ID = 1024616098  # ID вкладки з URL
 # 🎯 Додаткові налаштування
 MAX_MESSAGE_LENGTH = 4000  # Максимальна довжина повідомлення
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "@vlasenko_b")  # Username адміністратора для контактів
+WEBSITE_URL = "https://www.obabkolab.com.ua/"
+
+# 📁 Шляхи до файлів прайсу (розмістіть ці файли в папці з ботом)
+PRICE_IMAGES = [
+    "price_1.jpg",  # Перше зображення прайсу
+    "price_2.jpg",  # Друге зображення прайсу
+    "price_3.jpg"   # Третє зображення прайсу
+]
 
 # 🔌 Підключення до Google Sheets
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -77,7 +85,7 @@ def setup_google_sheets():
 WORKSHEET, HEADERS = setup_google_sheets()
 
 # 🧩 Етапи розмови
-DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE, MAIN_MENU, CHAT_MODE = range(9)
+DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE, MAIN_MENU, CHAT_MODE, FILE_UPLOAD = range(10)
 
 # 📊 Відповідність полів бота і таблиці
 FIELD_MAPPING = {
@@ -124,6 +132,9 @@ def get_main_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("📝 Нове замовлення", callback_data="new_order")],
         [InlineKeyboardButton("💬 Чат з підтримкою", callback_data="chat_support")],
+        [InlineKeyboardButton("💰 Прайс", callback_data="price")],
+        [InlineKeyboardButton("🌐 Сайт", callback_data="website")],
+        [InlineKeyboardButton("📎 Надіслати файли", callback_data="upload_files")],
         [InlineKeyboardButton("ℹ️ Довідка", callback_data="help")],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -167,6 +178,9 @@ async def start(update: Update, context: CallbackContext) -> int:
         "Я допоможу вам:\n"
         "• Оформити нове замовлення\n"
         "• Зв'язатися з підтримкою\n"
+        "• Переглянути прайс\n"
+        "• Відвідати наш сайт\n"
+        "• Надіслати файли\n"
         "• Отримати довідкову інформацію\n\n"
         "Оберіть потрібну дію:"
     )
@@ -203,6 +217,42 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
         )
         return CHAT_MODE
         
+    elif query.data == "price":
+        await show_price(update, context)
+        return MAIN_MENU
+        
+    elif query.data == "website":
+        await query.edit_message_text(
+            "🌐 **Наш офіційний сайт**\n\n"
+            "Відвідайте наш сайт для отримання детальної інформації:\n"
+            f"👉 [obabkolab.com.ua]({WEBSITE_URL})\n\n"
+            "На сайті ви знайдете:\n"
+            "• Повну інформацію про послуги\n"
+            "• Портфоліо робіт\n"
+            "• Контактну інформацію\n"
+            "• Онлайн консультації",
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")
+            ]])
+        )
+        return MAIN_MENU
+        
+    elif query.data == "upload_files":
+        await query.edit_message_text(
+            "📎 **Надсилання файлів**\n\n"
+            "Ви можете надіслати:\n"
+            "• Фотографії\n"
+            "• Документи (PDF, DOC, DOCX)\n"
+            "• Рентген знімки\n"
+            "• Інші файли\n\n"
+            "Просто прикріпіть файл до наступного повідомлення.\n"
+            "Файли будуть автоматично переслані нашому менеджеру.\n\n"
+            "Для повернення в меню натисніть /menu",
+            parse_mode='Markdown'
+        )
+        return FILE_UPLOAD
+        
     elif query.data == "help":
         help_text = (
             "🆘 **Довідка по боту**\n\n"
@@ -218,7 +268,8 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
             "5️⃣ ПІБ пацієнта\n" 
             "6️⃣ Система імплантатів\n"
             "7️⃣ Зона імплантації\n\n"
-            f"**Підтримка:** {ADMIN_USERNAME}"
+            f"**Підтримка:** {ADMIN_USERNAME}\n"
+            f"**Телефон:** +38 067 255 07 05"
         )
         
         keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
@@ -231,6 +282,182 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
         
     elif query.data == "back_to_menu":
         return await show_main_menu(update, context)
+
+# 💰 Відображення прайсу
+async def show_price(update: Update, context: CallbackContext):
+    """Показує прайс з фотографіями"""
+    query = update.callback_query
+    
+    try:
+        # Надсилаємо фотографії прайсу
+        media_group = []
+        
+        # Перевіряємо наявність файлів і надсилаємо їх
+        for i, image_path in enumerate(PRICE_IMAGES):
+            if os.path.exists(image_path):
+                with open(image_path, 'rb') as photo:
+                    if i == 0:  # До першого фото додаємо підпис
+                        await context.bot.send_photo(
+                            chat_id=query.message.chat_id,
+                            photo=photo,
+                            caption="💰 **ПРАЙС-ЛИСТ ПОСЛУГ**"
+                        )
+                    else:
+                        await context.bot.send_photo(
+                            chat_id=query.message.chat_id,
+                            photo=photo
+                        )
+            else:
+                logging.warning(f"Файл прайсу не знайдено: {image_path}")
+        
+        # Якщо немає жодного файлу, надсилаємо текстове повідомлення
+        if not any(os.path.exists(path) for path in PRICE_IMAGES):
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="💰 **ПРАЙС-ЛИСТ**\n\n⚠️ Зображення прайсу тимчасово недоступні.\nЗверніться до менеджера для отримання актуальних цін.",
+                parse_mode='Markdown'
+            )
+        
+        # Надсилаємо інформацію про оплату
+        payment_text = (
+            "💳 **УМОВИ ОПЛАТИ**\n\n"
+            "Оплата готівкою або на рахунок.\n"
+            "Деталі уточнюйте у менеджера:\n"
+            "📞 **+38 067 255 07 05**"
+        )
+        
+        keyboard = [[InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]]
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=payment_text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+        # Видаляємо початкове повідомлення
+        await query.delete_message()
+        
+    except Exception as e:
+        logging.error(f"Помилка відображення прайсу: {e}")
+        await query.edit_message_text(
+            "❌ Помилка завантаження прайсу. Спробуйте пізніше.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")
+            ]])
+        )
+
+# 📎 Обробка файлів
+async def file_handler(update: Update, context: CallbackContext) -> int:
+    """Обробник файлів від користувачів"""
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Невідомо"
+    first_name = update.effective_user.first_name or ""
+    
+    try:
+        file_info = None
+        file_name = None
+        file_type = None
+        
+        # Визначаємо тип файлу
+        if update.message.photo:
+            file_info = await update.message.photo[-1].get_file()
+            file_name = f"photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            file_type = "Фото"
+            
+        elif update.message.document:
+            file_info = await update.message.document.get_file()
+            file_name = update.message.document.file_name or f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            file_type = "Документ"
+            
+        elif update.message.video:
+            file_info = await update.message.video.get_file()
+            file_name = f"video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+            file_type = "Відео"
+            
+        elif update.message.audio:
+            file_info = await update.message.audio.get_file()
+            file_name = update.message.audio.file_name or f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            file_type = "Аудіо"
+            
+        elif update.message.voice:
+            file_info = await update.message.voice.get_file()
+            file_name = f"voice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.ogg"
+            file_type = "Голосове"
+        
+        if file_info:
+            # Відправляємо файл адміністратору
+            admin_msg = (
+                "📎 **НОВИЙ ФАЙЛ ВІД КОРИСТУВАЧА**\n\n"
+                f"👤 **Користувач:** {first_name} (@{username})\n"
+                f"🆔 **ID:** `{user_id}`\n"
+                f"📁 **Тип файлу:** {file_type}\n"
+                f"📋 **Назва файлу:** {file_name}\n"
+                f"⏰ **Час:** {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n"
+            )
+            
+            # Додаємо підпис до файлу якщо є
+            if update.message.caption:
+                admin_msg += f"\n💬 **Коментар:** {update.message.caption}"
+            
+            # Пересилаємо файл адміністратору
+            if update.message.photo:
+                await context.bot.send_photo(
+                    chat_id=ADMIN_CHAT_ID,
+                    photo=file_info.file_id,
+                    caption=admin_msg,
+                    parse_mode='Markdown'
+                )
+            elif update.message.document:
+                await context.bot.send_document(
+                    chat_id=ADMIN_CHAT_ID,
+                    document=file_info.file_id,
+                    caption=admin_msg,
+                    parse_mode='Markdown'
+                )
+            elif update.message.video:
+                await context.bot.send_video(
+                    chat_id=ADMIN_CHAT_ID,
+                    video=file_info.file_id,
+                    caption=admin_msg,
+                    parse_mode='Markdown'
+                )
+            elif update.message.audio:
+                await context.bot.send_audio(
+                    chat_id=ADMIN_CHAT_ID,
+                    audio=file_info.file_id,
+                    caption=admin_msg,
+                    parse_mode='Markdown'
+                )
+            elif update.message.voice:
+                await context.bot.send_voice(
+                    chat_id=ADMIN_CHAT_ID,
+                    voice=file_info.file_id,
+                    caption=admin_msg,
+                    parse_mode='Markdown'
+                )
+            
+            # Підтверджуємо отримання користувачу
+            await update.message.reply_text(
+                f"✅ **{file_type} успішно надіслано!**\n\n"
+                f"📁 Файл: {file_name}\n"
+                "Наш менеджер отримав ваш файл і зв'яжеться з вами.\n\n"
+                "Ви можете надіслати ще файли або повернутися в /menu"
+            )
+            
+        else:
+            await update.message.reply_text(
+                "❌ Непідтримуваний тип файлу. Спробуйте надіслати:\n"
+                "• Фото\n• Документ\n• Відео\n• Аудіо\n• Голосове повідомлення"
+            )
+    
+    except Exception as e:
+        logging.error(f"Помилка обробки файлу: {e}")
+        await update.message.reply_text(
+            "❌ Виникла помилка при обробці файлу. Спробуйте пізніше або зверніться до підтримки."
+        )
+    
+    return FILE_UPLOAD
 
 # 💬 Чат з підтримкою
 async def chat_handler(update: Update, context: CallbackContext) -> int:
@@ -681,11 +908,11 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|help|back_to_menu)$")
+            CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|price|website|upload_files|help|back_to_menu)$")
         ],
         states={
             MAIN_MENU: [
-                CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|help|back_to_menu)$")
+                CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|price|website|upload_files|help|back_to_menu)$")
             ],
             DOCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, doctor_handler)],
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)],
@@ -695,6 +922,12 @@ def main():
             IMPLANT_SYSTEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, implant_handler)],
             ZONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone_handler)],
             CHAT_MODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler)],
+            FILE_UPLOAD: [
+                MessageHandler(filters.PHOTO | filters.Document.ALL | filters.VIDEO | filters.AUDIO | filters.VOICE, file_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: update.message.reply_text(
+                    "📎 Будь ласка, прикріпіть файл або поверніться в /menu"
+                ))
+            ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel_handler),
