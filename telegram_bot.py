@@ -43,7 +43,19 @@ def setup_google_sheets():
             try:
                 creds_info = json.loads(creds_json_str)
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-                logging.info("Google Sheet credentials завантажено зі змінної оточення.")
+                logging.info("Бот запущено. Починаю polling...")
+    
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except KeyboardInterrupt:
+        logging.info("Отримано сигнал зупинки")
+    except Exception as e:
+        logging.error(f"Критична помилка: {e}")
+    finally:
+        logging.info("Бот зупинено")
+
+if __name__ == '__main__':
+    main()Google Sheet credentials завантажено зі змінної оточення.")
             except json.JSONDecodeError as e:
                 logging.error(f"Помилка декодування GOOGLE_CREDENTIALS_JSON: {e}")
                 creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
@@ -75,52 +87,152 @@ WORKSHEET, HEADERS = setup_google_sheets()
 # 🧩 Етапи розмови
 DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE, MAIN_MENU, CHAT_MODE, FILES_MODE = range(10)
 
-# Универсальная функция записи в Google Sheets
+# ✅ НОВА УДОСКОНАЛЕНА ФУНКЦІЯ ЗБЕРЕЖЕННЯ В GOOGLE SHEETS
 def save_to_sheet(user_data):
-    """Записує дані користувача в таблицю Google Sheets у правильному порядку колонок.
-
-    Записує дані у відповідності до структури таблиці:
-    A - ПІБ лікаря
-    B - Контактний телефон  
-    C - Назва клініки
-    D - Адреса клініки (пуста)
-    E - Якщо ви знаходитесь не в Києві (пуста)
-    F - Дата здачі
-    G - Час (пуста)
-    H - Питання до операції (пуста)  
-    I - ПІБ пацієнта
-    J - Система імплантатів
-    K - Зона встановлення імплантатів
-    """
+    """Записує дані користувача в таблицю Google Sheets з автоматичним визначенням колонок"""
     try:
         if not WORKSHEET:
             logging.error("WORKSHEET is not initialized. Cannot write to Google Sheet.")
             return False
-            
-        # Формуємо рядок даних у правильному порядку згідно структури таблиці
-        row_data = [
-            str(user_data.get('doctor', "")),           # A - ПІБ лікаря
-            str(user_data.get('phone', "")),            # B - Контактний телефон
-            str(user_data.get('clinic', "")),           # C - Назва клініки
-            "",                                         # D - Адреса клініки (пуста)
-            "",                                         # E - Якщо ви знаходитесь не в Києві (пуста)
-            str(user_data.get('date', "")),             # F - Дата здачі
-            "",                                         # G - Час (пуста)
-            "",                                         # H - Питання до операції (пуста)
-            str(user_data.get('patient', "")),          # I - ПІБ пацієнта
-            str(user_data.get('implant_system', "")),   # J - Система імплантатів
-            str(user_data.get('zone', "")),             # K - Зона встановлення імплантатів
-        ]
         
-        # Записуємо рядок у таблицю
-        WORKSHEET.append_row(row_data, value_input_option='USER_ENTERED')
-        logging.info(f"✅ Дані записані в Google Sheets: {row_data}")
-        return True
+        # Отримуємо всі існуючі дані та заголовки
+        all_values = WORKSHEET.get_all_values()
+        headers = all_values[0] if len(all_values) > 0 else []
+        next_row = len(all_values) + 1
+        
+        logging.info(f"📋 Заголовки таблиці: {headers}")
+        logging.info(f"📝 Записуємо в рядок: {next_row}")
+        
+        # Список оновлень для batch запиту
+        updates = []
+        
+        # Створюємо маппінг даних користувача
+        user_mapping = {
+            'doctor': user_data.get('doctor', ''),
+            'phone': user_data.get('phone', ''),
+            'clinic': user_data.get('clinic', ''),
+            'date': user_data.get('date', ''),
+            'patient': user_data.get('patient', ''),
+            'implant_system': user_data.get('implant_system', ''),
+            'zone': user_data.get('zone', ''),
+        }
+        
+        # Проходимо по всіх заголовках та шукаємо відповідності
+        for col_index, header in enumerate(headers):
+            if not header.strip():  # Пропускаємо пусті заголовки
+                continue
+                
+            header_lower = header.lower().strip()
+            column_letter = chr(65 + col_index)  # A, B, C, etc.
+            value_to_insert = ""
+            
+            # ПІБ лікаря - шукаємо різні варіанти
+            if any(keyword in header_lower for keyword in [
+                'лікар', 'doctor', 'піб лікар', 'лікаря', 'врач'
+            ]):
+                value_to_insert = user_mapping['doctor']
+                logging.info(f"🏥 Лікар '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Телефон
+            elif any(keyword in header_lower for keyword in [
+                'телефон', 'phone', 'контакт', 'номер', 'тел'
+            ]):
+                value_to_insert = user_mapping['phone']
+                logging.info(f"📞 Телефон '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Клініка
+            elif any(keyword in header_lower for keyword in [
+                'клініка', 'clinic', 'клиника', 'назва клінік', 'название клиник'
+            ]):
+                value_to_insert = user_mapping['clinic']
+                logging.info(f"🏥 Клініка '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Дата здачі
+            elif any(keyword in header_lower for keyword in [
+                'дата здачі', 'дата здач', 'date', 'дата', 'срок'
+            ]):
+                value_to_insert = user_mapping['date']
+                logging.info(f"📅 Дата '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # ПІБ пацієнта
+            elif any(keyword in header_lower for keyword in [
+                'пацієнт', 'patient', 'піб пацієнт', 'пациент', 'больной'
+            ]):
+                value_to_insert = user_mapping['patient']
+                logging.info(f"👤 Пацієнт '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Система імплантатів
+            elif any(keyword in header_lower for keyword in [
+                'система', 'implant', 'імплант', 'имплант', 'система імплант'
+            ]):
+                value_to_insert = user_mapping['implant_system']
+                logging.info(f"🔩 Система '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Зона встановлення
+            elif any(keyword in header_lower for keyword in [
+                'зона', 'zone', 'зона встановлення', 'область', 'место'
+            ]):
+                value_to_insert = user_mapping['zone']
+                logging.info(f"🦷 Зона '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Якщо знайшли відповідність, додаємо до списку оновлень
+            if value_to_insert:
+                updates.append({
+                    'range': f'{column_letter}{next_row}',
+                    'values': [[str(value_to_insert)]]
+                })
+        
+        # Виконуємо batch оновлення
+        if updates:
+            for update in updates:
+                WORKSHEET.update(update['range'], update['values'], value_input_option='USER_ENTERED')
+            
+            logging.info(f"✅ Успішно записано {len(updates)} полів у рядок {next_row}")
+            logging.info(f"📊 Оновлені дані: {[update['values'][0][0] for update in updates]}")
+            return True
+        else:
+            logging.warning("⚠️ Не знайдено жодної відповідності колонок!")
+            # Якщо не знайшли відповідностей, спробуємо записати в першу порожню колонку
+            fallback_data = [
+                user_mapping['doctor'],
+                user_mapping['phone'], 
+                user_mapping['clinic'],
+                user_mapping['date'],
+                user_mapping['patient'],
+                user_mapping['implant_system'],
+                user_mapping['zone']
+            ]
+            WORKSHEET.append_row(fallback_data, value_input_option='USER_ENTERED')
+            logging.info("📝 Використано fallback метод - додано рядок в кінець")
+            return True
         
     except Exception as e:
-        logging.error(f"❌ Помилка при записі в Google Sheet: {e}")
+        logging.error(f"❌ Критична помилка при записі в Google Sheet: {e}")
         return False
 
+# Функція для аналізу структури таблиці (допоміжна)
+def analyze_sheet_structure():
+    """Аналізує та виводить структуру таблиці для налагодження"""
+    try:
+        if not WORKSHEET:
+            logging.error("WORKSHEET is not initialized.")
+            return
+        
+        headers = WORKSHEET.row_values(1)
+        logging.info("\n" + "="*60)
+        logging.info("📊 СТРУКТУРА ТАБЛИЦІ:")
+        logging.info("="*60)
+        
+        for index, header in enumerate(headers):
+            column_letter = chr(65 + index)  # A, B, C, etc.
+            logging.info(f"Колонка {column_letter} (позиція {index + 1}): '{header}'")
+        
+        logging.info("="*60)
+        return headers
+        
+    except Exception as e:
+        logging.error(f"Помилка аналізу структури: {e}")
+        return []
 
 # 🔍 Функції валідації - ОТКЛЮЧЕНЫ ВСЕ ФИЛЬТРЫ!
 def validate_phone(phone: str) -> bool:
@@ -490,6 +602,9 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     # Показуємо підсумок замовлення
     await show_order_summary(update, context)
 
+    # 🎯 ВИКЛИКАЄМО АНАЛІЗ СТРУКТУРИ ПЕРЕД ЗБЕРЕЖЕННЯМ (для налагодження)
+    analyze_sheet_structure()
+
     success = save_to_sheet(context.user_data)
     
     if success:
@@ -679,6 +794,9 @@ def main():
     
     logging.info("Запуск бота...")
     
+    # 🔍 АНАЛІЗ СТРУКТУРИ ТАБЛИЦІ ПРИ ЗАПУСКУ
+    analyze_sheet_structure()
+    
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
@@ -714,16 +832,4 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & filters.Chat(chat_id=ADMIN_CHAT_ID) & ~filters.COMMAND, admin_message_handler))
     application.add_error_handler(error_handler)
     
-    logging.info("Бот запущено. Починаю polling...")
-    
-    try:
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
-    except KeyboardInterrupt:
-        logging.info("Отримано сигнал зупинки")
-    except Exception as e:
-        logging.error(f"Критична помилка: {e}")
-    finally:
-        logging.info("Бот зупинено")
-
-if __name__ == '__main__':
-    main()
+    logging.info("
