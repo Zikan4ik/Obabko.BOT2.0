@@ -556,4 +556,158 @@ async def admin_callback_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     
-    if query.from_user.id !=
+    if query.from_user.id != ADMIN_CHAT_ID:
+        await query.answer("❌ Недостатньо прав", show_alert=True)
+        return
+    
+    action, user_id = query.data.split("_", 1)
+    
+    if action == "accept":
+        await query.edit_message_reply_markup(
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ ПРИЙНЯТО", callback_data="accepted")
+            ]])
+        )
+        
+        try:
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text="✅ <b>Ваше замовлення прийнято!</b>\n\n"
+                     f"📞 Наш спеціаліст {ADMIN_USERNAME} зв'яжеться з вами найближчим часом.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logging.error(f"Не вдалося відправити сповіщення користувачу {user_id}: {e}")
+    
+    elif action == "reject":
+        await query.edit_message_reply_markup(
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("❌ ВІДХИЛЕНО", callback_data="rejected")
+            ]])
+        )
+        
+        try:
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text="❌ <b>Ваше замовлення відхилено</b>\n\n"
+                     f"📞 Зв'яжіться з {ADMIN_USERNAME} для уточнення деталей.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logging.error(f"Не вдалося відправити сповіщення користувачу {user_id}: {e}")
+    
+    elif action == "reply":
+        context.chat_data['admin_reply_to'] = user_id
+        await query.message.reply_text(
+            f"💬 Введіть повідомлення для користувача {user_id}:"
+        )
+
+async def admin_message_handler(update: Update, context: CallbackContext):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    
+    reply_to = context.chat_data.get('admin_reply_to')
+    if reply_to:
+        try:
+            admin_message = update.message.text
+            await context.bot.send_message(
+                chat_id=int(reply_to),
+                text=f"📩 <b>Повідомлення від адміністратора:</b>\n\n{admin_message}",
+                parse_mode='HTML'
+            )
+            
+            await update.message.reply_text(
+                f"✅ Повідомлення відправлено користувачу {reply_to}"
+            )
+            
+            context.chat_data.pop('admin_reply_to', None)
+            
+        except Exception as e:
+            await update.message.reply_text(
+                f"❌ Помилка відправлення повідомлення: {e}"
+            )
+            context.chat_data.pop('admin_reply_to', None)
+
+async def menu_command(update: Update, context: CallbackContext) -> int:
+    return await show_main_menu(update, context)
+
+async def cancel_handler(update: Update, context: CallbackContext) -> int:
+    keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
+    await update.message.reply_text(
+        "❌ <b>Операцію скасовано</b>",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return MAIN_MENU
+
+async def error_handler(update: object, context: CallbackContext):
+    logging.error(f"Exception: {context.error}")
+    if isinstance(update, Update) and update.effective_message:
+        await update.effective_message.reply_text(
+            "⚠️ Виникла помилка. Використайте /start для перезапуску."
+        )
+
+def main():
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO,
+        handlers=[
+            logging.FileHandler('bot.log', encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+    
+    if not WORKSHEET:
+        logging.error("Не вдалося підключитися до Google Sheets!")
+        return
+    
+    logging.info("Запуск бота...")
+    
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|send_files|help|back_to_menu|price|website)$")
+        ],
+        states={
+            MAIN_MENU: [
+                CallbackQueryHandler(menu_callback, pattern="^(new_order|chat_support|send_files|help|back_to_menu|price|website)$")
+            ],
+            DOCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, doctor_handler)],
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)],
+            CLINIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, clinic_handler)],
+            DATETIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, datetime_handler)],
+            PATIENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, patient_handler)],
+            IMPLANT_SYSTEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, implant_handler)],
+            ZONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone_handler)],
+            CHAT_MODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler)],
+            FILES_MODE: [MessageHandler(filters.ATTACHMENT | (filters.TEXT & ~filters.COMMAND), files_handler)],
+        },
+        fallbacks=[
+            CommandHandler("cancel", cancel_handler),
+            CommandHandler("menu", menu_command),
+            CommandHandler("start", start),
+        ],
+        per_message=False,
+    )
+    
+    application.add_handler(conv_handler)
+    application.add_handler(CommandHandler("menu", menu_command))
+    application.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^(accept_|reject_|reply_)"))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Chat(chat_id=ADMIN_CHAT_ID) & ~filters.COMMAND, admin_message_handler))
+    application.add_error_handler(error_handler)
+    
+    logging.info("Бот запущено. Починаю polling...")
+    
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except KeyboardInterrupt:
+        logging.info("Отримано сигнал зупинки")
+    except Exception as e:
+        logging.error(f"Критична помилка: {e}")
+    finally:
+        logging.info("Бот зупинено")
+
+if __name__ == '__main__':
+    main()
