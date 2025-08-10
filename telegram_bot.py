@@ -504,21 +504,6 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     return MAIN_MENU
 
 success = await save_to_sheet(context.user_data, async_mode=True)
-    data = context.user_data
-    summary = (
-        "📋 <b>Зведення вашого замовлення:</b>\n\n"
-        f"👨‍⚕️ <b>Лікар:</b> {data.get('doctor', 'N/A')}\n"
-        f"📞 <b>Телефон:</b> {data.get('phone', 'N/A')}\n"
-        f"🏥 <b>Клініка:</b> {data.get('clinic', 'N/A')}\n"
-        f"📅 <b>Дата здачі:</b> {data.get('date', 'N/A')}\n"
-        f"👤 <b>Пацієнт:</b> {data.get('patient', 'N/A')}\n"
-        f"🔩 <b>Система:</b> {data.get('implant_system', 'N/A')}\n"
-        f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n"
-        f"⏰ <b>Час створення:</b> {data.get('timestamp', 'N/A')}"
-    )
-    await update.message.reply_text(summary, parse_mode='HTML')
-
-
 async def notify_admin_async(context: CallbackContext):
     try:
         data = context.user_data
