@@ -29,7 +29,7 @@ WORKSHEET_ID = 1024616098  # ID вкладки з URL
 
 # 🎯 Додаткові налаштування
 MAX_MESSAGE_LENGTH = 4000  # Максимальна довжина повідомлення
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "@admin")  # Username адміністратора для контактів
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "@vlasenko_b")  # Username адміністратора для контактів
 
 # 🔌 Підключення до Google Sheets
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
