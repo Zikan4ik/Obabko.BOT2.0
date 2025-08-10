@@ -43,19 +43,7 @@ def setup_google_sheets():
             try:
                 creds_info = json.loads(creds_json_str)
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-                logging.info("Бот запущено. Починаю polling...")
-    
-    try:
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
-    except KeyboardInterrupt:
-        logging.info("Отримано сигнал зупинки")
-    except Exception as e:
-        logging.error(f"Критична помилка: {e}")
-    finally:
-        logging.info("Бот зупинено")
-
-if __name__ == '__main__':
-    main()Google Sheet credentials завантажено зі змінної оточення.")
+                logging.info("Google Sheet credentials завантажено зі змінної оточення.")
             except json.JSONDecodeError as e:
                 logging.error(f"Помилка декодування GOOGLE_CREDENTIALS_JSON: {e}")
                 creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
@@ -832,4 +820,16 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & filters.Chat(chat_id=ADMIN_CHAT_ID) & ~filters.COMMAND, admin_message_handler))
     application.add_error_handler(error_handler)
     
-    logging.info("
+    logging.info("Бот запущено. Починаю polling...")
+
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except KeyboardInterrupt:
+        logging.info("Отримано сигнал зупинки")
+    except Exception as e:
+        logging.error(f"Критична помилка: {e}")
+    finally:
+        logging.info("Бот зупинено")
+
+if __name__ == '__main__':
+    main()
