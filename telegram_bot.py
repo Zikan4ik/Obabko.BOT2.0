@@ -75,9 +75,9 @@ WORKSHEET, HEADERS = setup_google_sheets()
 # 🧩 Етапи розмови
 DOCTOR, PHONE, CLINIC, DATETIME, PATIENT, IMPLANT_SYSTEM, ZONE, MAIN_MENU, CHAT_MODE, FILES_MODE = range(10)
 
-# ✅ НОВА УДОСКОНАЛЕНА ФУНКЦІЯ ЗБЕРЕЖЕННЯ В GOOGLE SHEETS
+# ✅ ОБНОВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ В GOOGLE SHEETS С ДАТОЙ
 def save_to_sheet(user_data):
-    """Записує дані користувача в таблицю Google Sheets з автоматичним визначенням колонок"""
+    """Записує дані користувача в таблицю Google Sheets з автоматичним визначенням колонок включно з датою заповнення"""
     try:
         if not WORKSHEET:
             logging.error("WORKSHEET is not initialized. Cannot write to Google Sheet.")
@@ -103,6 +103,7 @@ def save_to_sheet(user_data):
             'patient': user_data.get('patient', ''),
             'implant_system': user_data.get('implant_system', ''),
             'zone': user_data.get('zone', ''),
+            'timestamp': user_data.get('timestamp', ''),  # Дата заповнення форми
         }
         
         # Проходимо по всіх заголовках та шукаємо відповідності
@@ -132,7 +133,7 @@ def save_to_sheet(user_data):
             # Дата здачі - точне співпадіння
             elif "дата здачі" in header_lower:
                 value_to_insert = user_mapping['date']
-                logging.info(f"📅 Дата '{value_to_insert}' -> колонка {column_letter} ({header})")
+                logging.info(f"📅 Дата здачі '{value_to_insert}' -> колонка {column_letter} ({header})")
             
             # ПІБ пацієнта - точне співпадіння
             elif header.strip() == "ПІБ пацієнта":
@@ -148,6 +149,11 @@ def save_to_sheet(user_data):
             elif "передбачувана зона встановлення імплантатів" in header_lower:
                 value_to_insert = user_mapping['zone']
                 logging.info(f"🦷 Зона '{value_to_insert}' -> колонка {column_letter} ({header})")
+            
+            # Отметка времени - дата заповнення форми
+            elif "отметка времени" in header_lower or "відмітка часу" in header_lower or header.strip() == "Отметка времени":
+                value_to_insert = user_mapping['timestamp']
+                logging.info(f"📅 Дата заповнення '{value_to_insert}' -> колонка {column_letter} ({header})")
             
             # Якщо знайшли відповідність, додаємо до списку оновлень
             if value_to_insert:
@@ -168,6 +174,7 @@ def save_to_sheet(user_data):
             logging.warning("⚠️ Не знайдено жодної відповідності колонок!")
             # Якщо не знайшли відповідностей, спробуємо записати в першу порожню колонку
             fallback_data = [
+                user_mapping['timestamp'],  # Дата заповнення
                 user_mapping['doctor'],
                 user_mapping['phone'], 
                 user_mapping['clinic'],
@@ -374,7 +381,6 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
         return MAIN_MENU
 
     elif query.data == "website":
-        # Повідомляємо користувачу про сайт без кнопок, що ведуть на старий URL.
         website_text = (
             f"🌐 <b>Наш офіційний сайт</b>\n\n"
             f"🔗 ObaBko Lab - Цифрова стоматологія: {WEBSITE_URL}\n\n"
@@ -385,7 +391,6 @@ async def menu_callback(update: Update, context: CallbackContext) -> int:
             "• Форму для замовлення\n"
         )
 
-        # Тепер додаємо лише кнопку для повернення в меню, не передаючи URL
         keyboard = [
             [InlineKeyboardButton("🔙 Назад в меню", callback_data="back_to_menu")]
         ]
@@ -516,7 +521,6 @@ async def files_handler(update: Update, context: CallbackContext):
 async def doctor_handler(update: Update, context: CallbackContext) -> int:
     """Принимает ЛЮБОЙ текст для имени врача"""
     doctor_name = update.message.text.strip()
-    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["doctor"] = doctor_name
     await update.message.reply_text("📞 Введіть <b>контактний номер телефону</b>:\n<i>(наприклад: +380501234567)</i>", parse_mode='HTML')
     return PHONE
@@ -524,7 +528,6 @@ async def doctor_handler(update: Update, context: CallbackContext) -> int:
 async def phone_handler(update: Update, context: CallbackContext) -> int:
     """Принимает ЛЮБОЙ текст для телефона"""
     phone = update.message.text.strip()
-    # ОТКЛЮЧЕНА валидация формата - принимаем любой текст
     context.user_data["phone"] = phone
     await update.message.reply_text("🏥 Введіть <b>назву клініки</b>:", parse_mode='HTML')
     return CLINIC
@@ -532,7 +535,6 @@ async def phone_handler(update: Update, context: CallbackContext) -> int:
 async def clinic_handler(update: Update, context: CallbackContext) -> int:
     """Принимает ЛЮБОЙ текст для клиники"""
     clinic_name = update.message.text.strip()
-    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["clinic"] = clinic_name
     await update.message.reply_text("📅 Введіть <b>дату здачі</b> у форматі ДД.ММ.РРРР:", parse_mode='HTML')
     return DATETIME
@@ -540,7 +542,6 @@ async def clinic_handler(update: Update, context: CallbackContext) -> int:
 async def datetime_handler(update: Update, context: CallbackContext) -> int:
     """Принимает ЛЮБОЙ текст для даты"""
     date_str = update.message.text.strip()
-    # ОТКЛЮЧЕНА валидация формата даты - принимаем любой текст
     context.user_data["date"] = date_str
     await update.message.reply_text("👤 Введіть <b>ПІБ пацієнта</b>:", parse_mode='HTML')
     return PATIENT
@@ -548,7 +549,6 @@ async def datetime_handler(update: Update, context: CallbackContext) -> int:
 async def patient_handler(update: Update, context: CallbackContext) -> int:
     """Принимает ЛЮБОЙ текст для пациента"""
     patient_name = update.message.text.strip()
-    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["patient"] = patient_name
     await update.message.reply_text("🔩 Введіть <b>систему імплантатів</b>:", parse_mode='HTML')
     return IMPLANT_SYSTEM
@@ -556,27 +556,27 @@ async def patient_handler(update: Update, context: CallbackContext) -> int:
 async def implant_handler(update: Update, context: CallbackContext) -> int:
     """Принимает ЛЮБОЙ текст для системы имплантатов"""
     implant_system = update.message.text.strip()
-    # ОТКЛЮЧЕНА валидация длины - принимаем любой текст
     context.user_data["implant_system"] = implant_system
     await update.message.reply_text("🦷 Введіть <b>передбачувану зону встановлення імплантатів</b>:\n<i>Вкажіть в форматі \"номер зуба - діаметр/довжина імплантата\"</i>", parse_mode='HTML')
     return ZONE
 
 async def zone_handler(update: Update, context: CallbackContext) -> int:
-    """Принимает ЛЮБОЙ текст для зоны имплантации - БЕЗ ВСЯКИХ ПРОВЕРОК!"""
+    """Принимает ЛЮБОЙ текст для зоны имплантации с сохранением даты заполнения"""
     zone = update.message.text.strip()
     
-    # ОТКЛЮЧЕНЫ ВСЕ ПРОВЕРКИ - принимаем любой текст!
-    # Даже пустой текст теперь принимается
-    
+    # Сохраняем все данные
     context.user_data["user_id"] = update.effective_user.id
     context.user_data["zone"] = zone
     context.user_data["status"] = "Новий"
-    context.user_data["timestamp"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    
+    # Сохраняем только дату заполнения (без времени)
+    now = datetime.now()
+    context.user_data["timestamp"] = now.strftime("%d.%m.%Y")
     
     # Показуємо підсумок замовлення
     await show_order_summary(update, context)
 
-    # 🎯 ВИКЛИКАЄМО АНАЛІЗ СТРУКТУРИ ПЕРЕД ЗБЕРЕЖЕННЯМ (для налагодження)
+    # Викликаємо аналіз структури перед збереженням (для налагодження)
     analyze_sheet_structure()
 
     success = save_to_sheet(context.user_data)
@@ -601,9 +601,9 @@ async def zone_handler(update: Update, context: CallbackContext) -> int:
     
     return MAIN_MENU
 
-# Добавляем недостающую функцию show_order_summary
+# Показывает сводку заказа перед сохранением
 async def show_order_summary(update: Update, context: CallbackContext):
-    """Показывает сводку заказа перед сохранением"""
+    """Показує підсумок замовлення перед збереженням"""
     data = context.user_data
     
     summary_text = (
@@ -614,13 +614,15 @@ async def show_order_summary(update: Update, context: CallbackContext):
         f"📅 <b>Дата здачі:</b> {data.get('date', 'N/A')}\n"
         f"👤 <b>Пацієнт:</b> {data.get('patient', 'N/A')}\n"
         f"🔩 <b>Система:</b> {data.get('implant_system', 'N/A')}\n"
-        f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n\n"
+        f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n"
+        f"📝 <b>Дата заповнення:</b> {data.get('timestamp', 'N/A')}\n\n"
         "🔄 <i>Обробляємо замовлення...</i>"
     )
     
     await update.message.reply_text(summary_text, parse_mode='HTML')
 
 async def notify_admin_async(context: CallbackContext):
+    """Уведомляет администратора о новом заказе"""
     try:
         data = context.user_data
         user_id = data.get('user_id', 'N/A')
@@ -635,7 +637,7 @@ async def notify_admin_async(context: CallbackContext):
             f"🔩 <b>Система:</b> {data.get('implant_system', 'N/A')}\n"
             f"🦷 <b>Зона:</b> {data.get('zone', 'N/A')}\n"
             f"📌 <b>Статус:</b> {data.get('status', 'N/A')}\n"
-            f"⏰ <b>Час:</b> {data.get('timestamp', 'N/A')}\n"
+            f"📝 <b>Дата заповнення:</b> {data.get('timestamp', 'N/A')}\n"
             f"🆔 <b>User ID:</b> <code>{user_id}</code>"
         )
         
@@ -658,6 +660,7 @@ async def notify_admin_async(context: CallbackContext):
         logging.error(f"Помилка надсилання повідомлення адміну: {e}")
 
 async def admin_callback_handler(update: Update, context: CallbackContext):
+    """Обработчик кнопок администратора"""
     query = update.callback_query
     await query.answer()
     
@@ -708,6 +711,7 @@ async def admin_callback_handler(update: Update, context: CallbackContext):
         )
 
 async def admin_message_handler(update: Update, context: CallbackContext):
+    """Обработчик сообщений администратора"""
     if update.effective_user.id != ADMIN_CHAT_ID:
         return
     
@@ -734,9 +738,11 @@ async def admin_message_handler(update: Update, context: CallbackContext):
             context.chat_data.pop('admin_reply_to', None)
 
 async def menu_command(update: Update, context: CallbackContext) -> int:
+    """Команда возврата в меню"""
     return await show_main_menu(update, context)
 
 async def cancel_handler(update: Update, context: CallbackContext) -> int:
+    """Обработчик отмены операции"""
     keyboard = [[InlineKeyboardButton("🏠 Головне меню", callback_data="back_to_menu")]]
     await update.message.reply_text(
         "❌ <b>Операцію скасовано</b>",
@@ -746,6 +752,7 @@ async def cancel_handler(update: Update, context: CallbackContext) -> int:
     return MAIN_MENU
 
 async def error_handler(update: object, context: CallbackContext):
+    """Обработчик ошибок"""
     logging.error(f"Exception: {context.error}")
     if isinstance(update, Update) and update.effective_message:
         await update.effective_message.reply_text(
@@ -753,6 +760,7 @@ async def error_handler(update: object, context: CallbackContext):
         )
 
 def main():
+    """Главная функция запуска бота"""
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO,
@@ -768,7 +776,7 @@ def main():
     
     logging.info("Запуск бота...")
     
-    # 🔍 АНАЛІЗ СТРУКТУРИ ТАБЛИЦІ ПРИ ЗАПУСКУ
+    # Аналіз структури таблиці при запуску
     analyze_sheet_structure()
     
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
