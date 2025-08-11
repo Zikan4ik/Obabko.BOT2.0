@@ -23,13 +23,13 @@ from typing import Optional, Dict, Any
 
 # 🔧 Налаштування
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN", "7627926805:AAFCYdWl9Bg8BdV38RpZyL_fkJQt8JNBf7s")
-ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "700139501"))
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "1786783987"))
 SPREADSHEET_ID = "1i7BKTUHO4QW9OoUW_0xdE1uKqGCcY3MO_6BjHaVzyFk"
 WORKSHEET_ID = 1024616098  # ID вкладки з URL
 
 # 🎯 Додаткові налаштування
 MAX_MESSAGE_LENGTH = 4000
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "@vlasenko_b")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "@Obabko_Lab")
 WEBSITE_URL = "https://www.obabkolab.com.ua/"
 
 # 🔌 Підключення до Google Sheets
